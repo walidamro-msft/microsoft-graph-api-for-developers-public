@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Microsoft Graph SDKs &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="What the Microsoft Graph SDKs add over raw HTTP, which packages to install for C#, PowerShell, Python, and Java, and which Azure Identity credential to use." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="sdks">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Topics</span><span class="sep">/</span><span>Microsoft Graph SDKs</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Microsoft Graph SDKs</h1>
+      <p class="subtitle">Strongly typed clients that handle authentication, retries, and paging, so your code focuses on the data instead of the HTTP plumbing.</p>
+      <div class="badge-row"><span class="badge">C# &middot; PowerShell &middot; Python &middot; Java</span><span class="badge">Concepts</span><span class="badge">~6 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="what-is" class="section-card reveal">
+          <h2>What the SDKs Add</h2>
+          <div class="quote-card">
+            <p>The Microsoft Graph software development kits (SDKs) are designed to simplify building high-quality, efficient, resilient applications that access Microsoft Graph.</p>
+            <cite>Source: Microsoft Graph SDK overview, Microsoft Learn</cite>
+          </div>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>Service library</h3><p>Models and request builders generated from Microsoft Graph metadata. You get IntelliSense for <code>Users</code>, <code>Groups</code>, <code>Me.Messages</code>, and their properties.</p></div>
+            <div class="cheat-item tone-green"><h3>Core library</h3><p>Retry handling, secure redirects, transparent authentication, payload compression, paging through collections, and batch requests.</p></div>
+          </div>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    CODE[Your code] --> SVC[Request builders]
+    SVC --> MW
+    subgraph MW[Core library middleware]
+        AUTH[Add token]
+        RETRY[Retry on 429 and 503]
+        REDIR[Follow redirects]
+        COMP[Compression]
+    end
+    MW --> GRAPH[graph.microsoft.com]
+    CRED[Azure Identity credential] -.-> AUTH
+    class CODE external
+    class SVC azure
+    class AUTH,CRED accent
+    class RETRY warning
+    class REDIR,COMP neutral
+    class GRAPH azure
+            </pre>
+          </div>
+          <p class="diagram-caption">The credential you pass in supplies tokens; the middleware adds them and retries throttled calls before your code sees an error.</p>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/sdks/sdks-overview" target="_blank" rel="noopener">Microsoft Graph SDK overview</a></div>
+        </section>
+
+        <section id="languages" class="section-card reveal">
+          <h2>Packages by Language</h2>
+          <p>SDKs exist for C#, PowerShell, Python, Java, TypeScript/JavaScript, Go, PHP, and a CLI. This workshop uses the first four. Each pairs the Microsoft Graph package with <strong>Azure Identity</strong> for authentication.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Language</th><th>Packages</th><th>Install</th></tr></thead>
+            <tbody>
+              <tr><td><strong>C#</strong></td><td><code>Microsoft.Graph</code>, <code>Azure.Identity</code></td><td><code>dotnet add package Microsoft.Graph</code><br /><code>dotnet add package Azure.Identity</code></td></tr>
+              <tr><td><strong>PowerShell</strong></td><td><code>Microsoft.Graph</code> (or only the submodules you need)</td><td><code>Install-Module Microsoft.Graph -Scope CurrentUser</code></td></tr>
+              <tr><td><strong>Python</strong></td><td><code>msgraph-sdk</code>, <code>azure-identity</code></td><td><code>pip install msgraph-sdk azure-identity</code></td></tr>
+              <tr><td><strong>Java</strong></td><td><code>com.microsoft.graph:microsoft-graph</code>, <code>com.azure:azure-identity</code></td><td>Maven or Gradle dependency</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>Note:</strong> Each SDK targets <code>v1.0</code>. Separate beta packages, such as <code>Microsoft.Graph.Beta</code> for .NET and PowerShell, call the beta endpoint. Don't ship beta packages or preview SDK releases to production.</div>
+          <div class="callout warning"><strong>Important:</strong> The Python SDK is a large package with long file paths. On Windows, enable long path support before you run <code>pip install msgraph-sdk</code>, or the install fails with an <code>OSError</code>. It supports Python 3.10 and later.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/sdks/sdk-installation" target="_blank" rel="noopener">Install a Microsoft Graph SDK</a> &middot; <a href="https://learn.microsoft.com/windows/win32/fileio/maximum-file-path-limitation" target="_blank" rel="noopener">Enable long paths in Windows</a></div>
+        </section>
+
+        <section id="same-call" class="section-card reveal">
+          <h2>The Same Call in Four Languages</h2>
+          <p>All four snippets send <code>GET /v1.0/users?$select=displayName,mail&amp;$top=5</code>. The shape is the same: navigate to the resource, set query parameters, send.</p>
+          <span class="code-label">C#</span>
+          <pre class="code" data-lang="csharp">var users = await graphClient.Users.GetAsync(config =&gt;
+{
+    config.QueryParameters.Select = ["displayName", "mail"];
+    config.QueryParameters.Top = 5;
+});</pre>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">Get-MgUser -Top 5 -Property DisplayName, Mail | Select-Object DisplayName, Mail</pre>
+          <span class="code-label">Python</span>
+          <pre class="code" data-lang="python">query = UsersRequestBuilder.UsersRequestBuilderGetQueryParameters(select=["displayName", "mail"], top=5)
+users = await graph_client.users.get(request_configuration=RequestConfiguration(query_parameters=query))</pre>
+          <span class="code-label">Java</span>
+          <pre class="code" data-lang="java">UserCollectionResponse users = graphClient.users().get(config -&gt; {
+    config.queryParameters.select = new String[] {"displayName", "mail"};
+    config.queryParameters.top = 5;
+});</pre>
+          <div class="callout success"><strong>Tip:</strong> Graph Explorer's <strong>Code snippets</strong> tab and the API reference pages show the SDK code for any request. In PowerShell, <code>Find-MgGraphCommand -Uri '/users'</code> tells you which cmdlet calls a URL and which permissions it needs.</div>
+        </section>
+
+        <section id="data-types" class="section-card reveal">
+          <h2>Work with Resources and Data Types</h2>
+          <p>The SDK turns each JSON response into typed objects. A few patterns cover most of what you meet in practice.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Pattern</th><th>What you get</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Entities</strong></td><td>A model class per resource, with nullable properties</td><td><code>User</code>, <code>Group</code>, <code>Message</code>, <code>Event</code>, <code>DriveItem</code></td></tr>
+              <tr><td><strong>Collections</strong></td><td>A response object with <code>Value</code> and <code>OdataNextLink</code></td><td><code>UserCollectionResponse</code></td></tr>
+              <tr><td><strong>Complex types</strong></td><td>Nested objects without their own ID</td><td><code>ItemBody</code>, <code>DateTimeTimeZone</code>, <code>EmailAddress</code></td></tr>
+              <tr><td><strong>Dates and enums</strong></td><td>Native types instead of strings</td><td><code>DateTimeOffset?</code>, <code>BodyType</code></td></tr>
+              <tr><td><strong>Polymorphic results</strong></td><td>A base type whose items are different subtypes</td><td>Group members are <code>DirectoryObject</code>: users, groups, devices, and more</td></tr>
+              <tr><td><strong>Unknown properties</strong></td><td>Anything not in the model lands in a dictionary</td><td><code>AdditionalData</code></td></tr>
+            </tbody>
+          </table></div>
+          <span class="code-label">C#: handle mixed member types, or ask only for users</span>
+          <pre class="code" data-lang="csharp">var members = await graphClient.Groups[groupId].Members.GetAsync();
+foreach (var member in members?.Value ?? [])
+{
+    switch (member)
+    {
+        case User user:
+            Console.WriteLine($"User:   {user.DisplayName} &lt;{user.Mail}&gt;");
+            break;
+        case Group group:
+            Console.WriteLine($"Group:  {group.DisplayName}");
+            break;
+        case Device device:
+            Console.WriteLine($"Device: {device.DisplayName}");
+            break;
+        default:
+            Console.WriteLine($"Other:  {member.OdataType} {member.Id}");
+            break;
+    }
+}
+
+// OData cast: GET /groups/{id}/members/microsoft.graph.user (advanced query)
+var users = await graphClient.Groups[groupId].Members.GraphUser.GetAsync(config =&gt;
+{
+    config.QueryParameters.Count = true;
+    config.QueryParameters.Select = ["displayName", "createdDateTime"];
+    config.Headers.Add("ConsistencyLevel", "eventual");
+});
+foreach (var user in users?.Value ?? [])
+{
+    DateTimeOffset? created = user.CreatedDateTime;
+    Console.WriteLine($"{user.DisplayName} created {created:yyyy-MM-dd}");
+}</pre>
+          <div class="callout"><strong>Note:</strong> Properties you didn't <code>$select</code> come back as <code>null</code>, not as errors. If a member's details are <code>null</code> except <code>id</code> and <code>@odata.type</code>, your app lacks permission to read that object type.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/api/group-list-members" target="_blank" rel="noopener">List group members (OData cast)</a> &middot; <a href="https://learn.microsoft.com/graph/permissions-overview#limited-information-returned-for-inaccessible-member-objects" target="_blank" rel="noopener">Limited information for inaccessible members</a></div>
+        </section>
+
+        <section id="credentials" class="section-card reveal">
+          <h2>Choose a Credential</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Scenario</th><th>Azure Identity credential</th><th>Permission type</th></tr></thead>
+            <tbody>
+              <tr><td>Console app or CLI with a user</td><td><code>DeviceCodeCredential</code></td><td>Delegated</td></tr>
+              <tr><td>Desktop app with a browser</td><td><code>InteractiveBrowserCredential</code></td><td>Delegated</td></tr>
+              <tr><td>Daemon in development or a workshop</td><td><code>ClientSecretCredential</code></td><td>Application</td></tr>
+              <tr><td>Daemon in production</td><td><code>ClientCertificateCredential</code>, or <code>ManagedIdentityCredential</code> when it runs on Azure</td><td>Application</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>Note:</strong> Delegated credentials take the scopes you need, for example <code>["User.Read"]</code>. App-only credentials always request <code>https://graph.microsoft.com/.default</code>.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/sdks/choose-authentication-providers" target="_blank" rel="noopener">Choose a Microsoft Graph authentication provider</a></div>
+        </section>
+
+        <section id="powershell" class="section-card reveal">
+          <h2>Microsoft Graph PowerShell</h2>
+          <p>Microsoft Graph PowerShell wraps the entire API as cmdlets such as <code>Get-MgUser</code> and <code>New-MgGroup</code>. The cmdlets are generated from the API schema, so new APIs arrive quickly. It replaces the Azure AD PowerShell and MSOnline modules and is the recommended way to script Microsoft Entra ID.</p>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>Works everywhere</h3><p>PowerShell 7 and later on Windows, macOS, and Linux. Also runs on Windows PowerShell 5.1.</p></div>
+            <div class="cheat-item tone-purple"><h3>Least privilege by default</h3><p>Permissions aren't pre-authorized. You ask for scopes with <code>Connect-MgGraph -Scopes</code> and consent once.</p></div>
+            <div class="cheat-item tone-green"><h3>Any API</h3><p><code>Invoke-MgGraphRequest</code> calls any REST URL, even when no cmdlet exists yet.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/powershell/microsoftgraph/overview" target="_blank" rel="noopener">Microsoft Graph PowerShell SDK overview</a></div>
+        </section>
+
+        <section id="support" class="section-card reveal">
+          <h2>Support and Alternatives</h2>
+          <ul>
+            <li>The SDKs are open-source GitHub projects. Report SDK bugs on the repository's <strong>Issues</strong> page.</li>
+            <li>Microsoft support covers the Microsoft Graph HTTP request, so capture the <code>request-id</code> and the raw request when you open a case.</li>
+            <li>If you call only a few APIs and want a smaller package, generate a client with <strong>Kiota</strong>.</li>
+          </ul>
+          <div class="takeaway">
+            <h3>Key takeaway</h3>
+            <p>Use an SDK plus an Azure Identity credential. You get typed models, automatic retries, and paging helpers, and the code reads the same in every language.</p>
+          </div>
+          <ul>
+            <li>Practice in <a href="../labs/lab03-powershell.html">Lab 03 (PowerShell)</a>, <a href="../labs/lab04-dotnet-vscode.html">Lab 04 (C#)</a>, <a href="../labs/lab05-python-vscode.html">Lab 05 (Python)</a>, and <a href="../labs/lab06-java-vscode.html">Lab 06 (Java)</a>.</li>
+          </ul>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/sdks/generate-with-kiota" target="_blank" rel="noopener">Generate Microsoft Graph clients with Kiota</a></div>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="errors-throttling.html"><small>Previous</small><strong>&larr; Errors and Throttling</strong></a>
+          <a class="next" href="security-best-practices.html"><small>Next</small><strong>Security Best Practices &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#what-is">What the SDKs Add</a>
+        <a href="#languages">Packages by Language</a>
+        <a href="#same-call">The Same Call in Four Languages</a>
+        <a href="#data-types">Resources and Data Types</a>
+        <a href="#credentials">Choose a Credential</a>
+        <a href="#powershell">Microsoft Graph PowerShell</a>
+        <a href="#support">Support and Alternatives</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

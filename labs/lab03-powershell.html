@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 03: Manage Users and Groups with Microsoft Graph PowerShell &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Use Microsoft Graph PowerShell to connect with scopes, discover cmdlets and permissions, query users with advanced filters, create a security group, and call raw REST." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="lab03-powershell">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><a href="index.html">Labs</a><span class="sep">/</span><span>Lab 03</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Lab 03: Manage Users and Groups with Microsoft Graph PowerShell</h1>
+      <p class="subtitle">Script Microsoft Entra ID the way admins do: connect with only the scopes you need, find the right cmdlet, query users, and create a security group.</p>
+      <div class="badge-row"><span class="badge">VS Code &middot; PowerShell 7</span><span class="badge">Intermediate</span><span class="badge">~15 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="scenario" class="section-card reveal">
+          <h2>Scenario and Objectives</h2>
+          <p>You're an Entra ID admin who needs a repeatable way to report on accounts and set up project groups. You script it with Microsoft Graph PowerShell instead of clicking through the portal.</p>
+          <ul>
+            <li>Install only the Microsoft Graph PowerShell modules you need.</li>
+            <li>Connect with explicit delegated scopes and inspect the session.</li>
+            <li>Discover cmdlets and permissions with <code>Find-MgGraphCommand</code> and <code>Find-MgGraphPermission</code>.</li>
+            <li>Query users, including an advanced query, then create and populate a security group.</li>
+            <li>Call any REST endpoint with <code>Invoke-MgGraphRequest</code>.</li>
+          </ul>
+          <div class="callout"><strong>Related topic:</strong> <a href="../topics/sdks.html#powershell">Microsoft Graph PowerShell</a> &middot; <a href="../topics/making-requests.html#advanced-queries">Advanced Queries</a></div>
+        </section>
+
+        <section id="architecture" class="section-card reveal">
+          <h2>Architecture</h2>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    ADMIN[You in VS Code] --> PS[Graph PowerShell modules]
+    PS -->|Connect-MgGraph -Scopes| ENTRA[Microsoft Entra ID]
+    PS -->|Get-MgUser, New-MgGroup| GRAPH[graph.microsoft.com]
+    GRAPH --> USERS[(Users)]
+    GRAPH --> GROUP[(Lab security group)]
+    class ADMIN external
+    class PS azure
+    class ENTRA accent
+    class GRAPH azure
+    class USERS,GROUP data
+            </pre>
+          </div>
+          <p class="diagram-caption">You sign in as yourself. Each cmdlet becomes a Microsoft Graph REST call with your delegated token.</p>
+        </section>
+
+        <section id="prerequisites" class="section-card reveal">
+          <h2>Prerequisites and Names</h2>
+          <ul>
+            <li><a href="https://learn.microsoft.com/powershell/scripting/install/installing-powershell" target="_blank" rel="noopener">PowerShell 7</a> or later (recommended), and VS Code with the <strong>PowerShell</strong> extension.</li>
+            <li>A test-tenant admin account that can consent to <code>User.Read.All</code> and <code>Group.ReadWrite.All</code> (both need admin consent).</li>
+            <li>Optional, for the stretch goal: the daemon app values from <a href="lab02-register-app-portal.html">Lab 02</a>.</li>
+          </ul>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Item</th><th>Suggested value</th></tr></thead>
+            <tbody>
+              <tr><td>Security group display name</td><td><code>Graph Workshop &lt;suffix&gt;</code></td></tr>
+              <tr><td>Security group mail nickname</td><td><code>graph-workshop-&lt;suffix&gt;</code></td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="build" class="section-card reveal">
+          <h2>Build</h2>
+          <p>Open a <strong>PowerShell</strong> terminal in VS Code (<strong>Terminal</strong> &gt; <strong>New Terminal</strong>, then choose <strong>pwsh</strong>) and run each block in order.</p>
+
+          <h3>Step 1: Install the Modules</h3>
+          <p>The full <code>Microsoft.Graph</code> module installs dozens of submodules. Install only the three this lab uses.</p>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">$PSVersionTable.PSVersion
+Install-Module Microsoft.Graph.Authentication, Microsoft.Graph.Users, Microsoft.Graph.Groups -Scope CurrentUser -Repository PSGallery
+Get-InstalledModule Microsoft.Graph.* | Select-Object Name, Version</pre>
+          <p><strong>Expected result:</strong> PowerShell 7.x, and the three modules listed with the same version. If prompted about an untrusted repository, answer <strong>Y</strong>.</p>
+
+          <h3>Step 2: Connect with Explicit Scopes</h3>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">Connect-MgGraph -Scopes "User.Read.All", "Group.ReadWrite.All" -NoWelcome
+Get-MgContext | Select-Object Account, AuthType, AppName
+(Get-MgContext).Scopes</pre>
+          <ol>
+            <li>Sign in with your test-tenant admin account in the window that opens.</li>
+            <li>On the consent prompt, review the permissions and accept.</li>
+          </ol>
+          <p><strong>Expected result:</strong> <code>AuthType</code> is <code>Delegated</code> and the scopes include <code>User.Read.All</code> and <code>Group.ReadWrite.All</code>.</p>
+          <div class="callout"><strong>Note:</strong> Microsoft Graph PowerShell has no permissions until you ask for them. Request only the scopes the script needs; you can run <code>Connect-MgGraph</code> again with more scopes later.</div>
+
+          <h3>Step 3: Discover Cmdlets and Permissions</h3>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">Find-MgGraphCommand -Uri '/users' -Method GET | Select-Object Command, Module, Method, URI
+Find-MgGraphPermission -SearchString 'GroupMember' -PermissionType Delegated</pre>
+          <p><strong>Expected result:</strong> <code>Get-MgUser</code> is the cmdlet for <code>GET /users</code>, and the permission search lists <code>GroupMember.Read.All</code> and <code>GroupMember.ReadWrite.All</code> with their consent type.</p>
+
+          <h3>Step 4: Query Users</h3>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell"># First page, only the properties you need
+Get-MgUser -Top 5 -Property DisplayName, Mail, AccountEnabled |
+    Select-Object DisplayName, Mail, AccountEnabled
+
+# -All follows @odata.nextLink for you
+(Get-MgUser -All -Property Id | Measure-Object).Count
+
+# Advanced query: 'ne' needs ConsistencyLevel eventual and a count
+Get-MgUser -Filter "accountEnabled ne true" -ConsistencyLevel eventual -CountVariable disabledCount -Property DisplayName |
+    Select-Object DisplayName
+"Disabled accounts: $disabledCount"</pre>
+          <p><strong>Expected result:</strong> Five users, the total user count, and the number of disabled accounts (it can be 0).</p>
+
+          <h3>Step 5: Create a Security Group and Add Yourself</h3>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">$suffix = "&lt;suffix&gt;"
+$group = New-MgGroup -DisplayName "Graph Workshop $suffix" `
+    -MailEnabled:$false -MailNickname "graph-workshop-$suffix" `
+    -SecurityEnabled -Description "Created in Lab 03"
+$group | Select-Object Id, DisplayName, SecurityEnabled
+
+$me = Get-MgUser -UserId (Get-MgContext).Account
+New-MgGroupMember -GroupId $group.Id -DirectoryObjectId $me.Id
+Get-MgGroupMember -GroupId $group.Id | ForEach-Object { $_.AdditionalProperties.displayName }</pre>
+          <p><strong>Expected result:</strong> The new group's ID and name, then your display name as its only member.</p>
+
+          <h3>Step 6: Call Raw REST and See the HTTP Traffic</h3>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">Invoke-MgGraphRequest -Method GET `
+    -Uri "https://graph.microsoft.com/v1.0/groups/$($group.Id)?`$select=displayName,securityEnabled,createdDateTime"
+
+Get-MgGroup -GroupId $group.Id -Property DisplayName -Debug</pre>
+          <p><strong>Expected result:</strong> The first command returns the three selected properties as a hashtable. The second prints the full HTTP request and response, showing that each cmdlet is a Microsoft Graph REST call.</p>
+          <div class="callout"><strong>Note:</strong> The backtick before <code>$select</code> stops PowerShell from treating it as a variable inside the double-quoted string.</div>
+        </section>
+
+        <section id="test" class="section-card reveal">
+          <h2>Test and Verify</h2>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">Get-MgGroup -Filter "displayName eq 'Graph Workshop $suffix'" -Property Id, DisplayName, SecurityEnabled, MailEnabled |
+    Select-Object Id, DisplayName, SecurityEnabled, MailEnabled</pre>
+          <ul class="checklist">
+            <li><code>Get-MgContext</code> shows a delegated session with exactly the two scopes you requested.</li>
+            <li>The advanced query returned a count without an error.</li>
+            <li>The group exists with <code>SecurityEnabled</code> <code>True</code> and <code>MailEnabled</code> <code>False</code>.</li>
+            <li>You're the only member of the group.</li>
+            <li>The <code>-Debug</code> output shows a <code>GET</code> to <code>https://graph.microsoft.com/v1.0/groups/...</code>.</li>
+          </ul>
+        </section>
+
+        <section id="stretch" class="section-card reveal">
+          <h2>Stretch Goal: App-Only Session</h2>
+          <p>Connect as the Lab 02 daemon app and see how application permissions change what the session can do.</p>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">$tenantId = "&lt;tenant-id&gt;"
+$daemonClientId = "&lt;daemon-client-id&gt;"
+$secret = Read-Host "Daemon client secret" -AsSecureString
+$cred = [System.Management.Automation.PSCredential]::new($daemonClientId, $secret)
+
+Disconnect-MgGraph | Out-Null
+Connect-MgGraph -TenantId $tenantId -ClientSecretCredential $cred -NoWelcome
+Get-MgContext | Select-Object AuthType, AppName, Scopes
+
+Get-MgUser -Top 3 -Property DisplayName | Select-Object DisplayName
+New-MgGroup -DisplayName "Should fail" -MailEnabled:$false -MailNickname "should-fail" -SecurityEnabled</pre>
+          <p><strong>Expected result:</strong> <code>AuthType</code> is <code>AppOnly</code> and <code>Scopes</code> lists <code>User.Read.All</code>. Reading users works; creating a group fails with <code>403</code> <code>Authorization_RequestDenied</code>, because the daemon only has <code>User.Read.All</code>.</p>
+        </section>
+
+        <section id="troubleshoot" class="section-card reveal">
+          <h2>Troubleshooting</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+            <tbody>
+              <tr><td>The sign-in window doesn't appear</td><td>It may be behind VS Code. Or run <code>Connect-MgGraph -Scopes ... -UseDeviceCode</code> and complete sign-in at the URL it prints.</td></tr>
+              <tr><td><code>Insufficient privileges to complete the operation</code></td><td>The session lacks a scope. Run <code>(Get-MgContext).Scopes</code>, then reconnect with the missing scope.</td></tr>
+              <tr><td><strong>Need admin approval</strong> at consent</td><td>Sign in with an admin account in your test tenant.</td></tr>
+              <tr><td>Advanced query fails with <code>Request_UnsupportedQuery</code></td><td>Include both <code>-ConsistencyLevel eventual</code> and <code>-CountVariable</code>.</td></tr>
+              <tr><td><code>New-MgGroup</code> fails because the mail nickname exists</td><td>Choose a different <code>$suffix</code>.</td></tr>
+              <tr><td>Windows PowerShell 5.1 won't load the modules</td><td>Use PowerShell 7, or set the execution policy to <code>RemoteSigned</code> for the current user.</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="cleanup" class="section-card reveal">
+          <h2>Cleanup and References</h2>
+          <p>Delete the lab group and sign out. If you ran the stretch goal, reconnect with delegated scopes first, because the daemon can't delete groups.</p>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">Connect-MgGraph -Scopes "Group.ReadWrite.All" -NoWelcome
+$group = Get-MgGroup -Filter "displayName eq 'Graph Workshop $suffix'"
+Remove-MgGroup -GroupId $group.Id
+Disconnect-MgGraph</pre>
+          <p>Microsoft Graph PowerShell caches your sign-in across sessions until you run <code>Disconnect-MgGraph</code>. Groups have no cost.</p>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/powershell/microsoftgraph/installation" target="_blank" rel="noopener">Install the Microsoft Graph PowerShell SDK</a> &middot; <a href="https://learn.microsoft.com/powershell/microsoftgraph/authentication-commands" target="_blank" rel="noopener">Authentication commands</a> &middot; <a href="https://learn.microsoft.com/powershell/microsoftgraph/find-mg-graph-command" target="_blank" rel="noopener">Use Find-MgGraphCommand</a></div>
+        </section>
+
+        <nav class="pager" aria-label="Lab pagination">
+          <a class="prev" href="lab02-register-app-portal.html"><small>Previous</small><strong>&larr; Lab 02: Register Apps</strong></a>
+          <a class="next" href="lab04-dotnet-vscode.html"><small>Next</small><strong>Lab 04: C# Console App &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#scenario">Scenario</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#prerequisites">Prerequisites</a>
+        <a href="#build">Build</a>
+        <a href="#test">Test and Verify</a>
+        <a href="#stretch">Stretch Goal</a>
+        <a href="#troubleshoot">Troubleshooting</a>
+        <a href="#cleanup">Cleanup</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

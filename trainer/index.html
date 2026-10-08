@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trainer Hub &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Trainer materials for the Microsoft Graph API for Developers workshop: invite text, prerequisites email, full and short agendas, and shortcuts." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="trainer">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Workshop Home</a><span class="sep">/</span><span>Trainer Hub</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Trainer Hub</h1>
+      <p class="subtitle">Delivery materials for the Microsoft Graph API for Developers workshop: invite text, prerequisites, agendas, and shortcuts.</p>
+      <div class="audience"><span>Trainers</span><span>Facilitators</span><span>Workshop owners</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section class="section-card reveal" id="invite-template">
+          <h2>Attendee Invite (Copy/Paste)</h2>
+          <p>Use this text in a calendar invite or email.</p>
+          <pre class="code" data-lang="text">Microsoft Graph API for Developers (1-2 hour hands-on workshop, L200)
+
+Learn how to use Microsoft Graph, the single API for Microsoft 365 and Microsoft Entra ID data, in your apps and automation.
+
+What we will cover:
+- What Microsoft Graph is and what it can reach
+- App registration, delegated vs. application permissions, and consent
+- Building requests: query parameters, paging, errors, and throttling
+- The Microsoft Graph SDKs for PowerShell, C#, Python, and Java
+- Hands-on labs: Graph Explorer, Microsoft Entra admin center, PowerShell, C#, Python, Java
+
+Who should attend:
+- Developers, architects, and Microsoft Entra ID admins
+
+Prerequisites (please complete before the session):
+- A Microsoft Entra TEST or developer tenant where you can register apps and grant admin consent
+  (Privileged Role Administrator or Global Administrator). Do not use production.
+- Visual Studio Code
+- For the code labs, at least one of: PowerShell 7, .NET 8 SDK or later, Python 3.10 or later, JDK 11 or later with Maven
+- Windows + Python: enable Windows long path support (admin) before the session
+
+Outcome:
+By the end of this workshop, you can register a least-privilege app, call Microsoft Graph with an SDK, page through results, and handle errors and throttling.
+
+Workshop site: https://walidamro-msft.github.io/microsoft-graph-api-for-developers/</pre>
+        </section>
+
+        <section class="section-card reveal" id="agenda">
+          <h2>Agenda and Timing</h2>
+          <h3>Full format (about 1 h 55 min)</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Block</th><th>Content</th><th>Duration</th></tr></thead>
+            <tbody>
+              <tr><td>Pre-read</td><td><a href="../topics/setup-environment.html">Set Up Your Environment</a> (send with the invite; check readiness at the start)</td><td>&mdash;</td></tr>
+              <tr><td>Foundations</td><td><a href="../topics/overview.html">What Is Microsoft Graph</a>, <a href="../topics/auth-permissions.html">Authentication and Permissions</a>, <a href="../topics/graph-explorer.html">Graph Explorer</a>, <a href="../topics/making-requests.html">Making Requests</a></td><td>30 min</td></tr>
+              <tr><td>Hands-on</td><td><a href="../labs/lab01-graph-explorer.html">Lab 01</a> and <a href="../labs/lab02-register-app-portal.html">Lab 02</a></td><td>22 min</td></tr>
+              <tr><td>Building blocks</td><td><a href="../topics/errors-throttling.html">Errors and Throttling</a>, <a href="../topics/sdks.html">SDKs</a>, <a href="../topics/security-best-practices.html">Security Best Practices</a></td><td>16 min</td></tr>
+              <tr><td>Hands-on</td><td><a href="../labs/lab03-powershell.html">Lab 03</a>, <a href="../labs/lab04-dotnet-vscode.html">Lab 04</a>, <a href="../labs/lab05-python-vscode.html">Lab 05</a>, <a href="../labs/lab06-java-vscode.html">Lab 06</a> (attendees pick one or two by role and language)</td><td>40 min</td></tr>
+              <tr><td>Wrap-up</td><td><a href="../topics/resources.html">Summary and Resources</a>, cleanup reminder (delete app registrations), Q&amp;A</td><td>7 min</td></tr>
+            </tbody>
+          </table></div>
+          <h3>Short format (about 1 hour)</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Block</th><th>Content</th><th>Duration</th></tr></thead>
+            <tbody>
+              <tr><td>Foundations</td><td>Overview, Authentication and Permissions, Graph Explorer, Making Requests</td><td>30 min</td></tr>
+              <tr><td>Hands-on</td><td>Lab 01, then Lab 02</td><td>20 min</td></tr>
+              <tr><td>Demo</td><td>Trainer runs Lab 03 or Lab 04; Errors, SDKs, Security, and Labs 03 to 06 become take-home; close on Summary and Resources</td><td>10 min</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section class="section-card reveal" id="shortcuts">
+          <h2>Trainer Shortcuts</h2>
+          <ul>
+            <li><a href="detailed-training-guide.html">Detailed training guide</a> (talk track and lab facilitation)</li>
+            <li><a href="../labs/index.html">Labs overview</a></li>
+            <li><a href="https://aka.ms/ge" target="_blank" rel="noopener">Graph Explorer</a></li>
+            <li><a href="https://entra.microsoft.com" target="_blank" rel="noopener">Microsoft Entra admin center</a></li>
+          </ul>
+        </section>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#invite-template">Attendee Invite</a>
+        <a href="#agenda">Agenda and Timing</a>
+        <a href="#shortcuts">Shortcuts</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

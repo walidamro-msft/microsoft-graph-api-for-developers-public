@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 05: Call Microsoft Graph App-Only from Python &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Build a Python background job that authenticates with client credentials, lists users with paging, and handles errors, reading its secret from the environment." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="lab05-python">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><a href="index.html">Labs</a><span class="sep">/</span><span>Lab 05</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Lab 05: Call Microsoft Graph App-Only from Python</h1>
+      <p class="subtitle">Build the nightly user report as a Python daemon: no signed-in user, a client credential from the environment, and paging through every user in the tenant.</p>
+      <div class="badge-row"><span class="badge">VS Code &middot; Python</span><span class="badge">Intermediate</span><span class="badge">~15 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="scenario" class="section-card reveal">
+          <h2>Scenario and Objectives</h2>
+          <p>A scheduled job must list every user and whether the account is enabled. Nobody signs in when it runs, so it uses app-only access with the daemon app from Lab 02.</p>
+          <ul>
+            <li>Authenticate with <code>ClientSecretCredential</code> and the <code>.default</code> scope.</li>
+            <li>Read the client secret from an environment variable, never from code.</li>
+            <li>List users with <code>$select</code> and <code>$top</code>, and follow every page.</li>
+            <li>Catch <code>ODataError</code> for a missing user.</li>
+          </ul>
+          <div class="callout"><strong>Note:</strong> <a href="lab06-java-vscode.html">Lab 06</a> builds the same job in Java. Do either one, or both to compare the SDKs.</div>
+          <div class="callout"><strong>Related topic:</strong> <a href="../topics/auth-permissions.html#access-scenarios">Delegated and App-Only Access</a> &middot; <a href="../topics/sdks.html#credentials">Choose a Credential</a></div>
+        </section>
+
+        <section id="architecture" class="section-card reveal">
+          <h2>Architecture</h2>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    ENV[(Environment variables)] --> JOB[Python job]
+    JOB -->|client ID + secret| ENTRA[Microsoft Entra ID]
+    ENTRA -->|app-only token| JOB
+    JOB -->|GET /users, paged| GRAPH[graph.microsoft.com]
+    GRAPH --> USERS[(All users)]
+    class ENV data
+    class JOB azure
+    class ENTRA accent
+    class GRAPH azure
+    class USERS data
+            </pre>
+          </div>
+          <p class="diagram-caption">The job proves its own identity with the secret. The token carries the <code>User.Read.All</code> app role that an admin consented to in Lab 02.</p>
+        </section>
+
+        <section id="prerequisites" class="section-card reveal">
+          <h2>Prerequisites and Names</h2>
+          <ul>
+            <li>The <code>graph-workshop-daemon-&lt;suffix&gt;</code> app from <a href="lab02-register-app-portal.html">Lab 02</a> with <code>User.Read.All</code> (Application) granted, and its client secret value.</li>
+            <li>Python 3.10 or later and the VS Code <strong>Python</strong> extension.</li>
+            <li>On Windows, Windows long path support enabled (see Step 2), or WSL.</li>
+          </ul>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Environment variable</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td><code>GRAPH_TENANT_ID</code></td><td>Directory (tenant) ID</td></tr>
+              <tr><td><code>GRAPH_DAEMON_CLIENT_ID</code></td><td>Application (client) ID of <code>graph-workshop-daemon-&lt;suffix&gt;</code></td></tr>
+              <tr><td><code>GRAPH_DAEMON_CLIENT_SECRET</code></td><td>The client secret <strong>Value</strong></td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout warning"><strong>Important:</strong> Enter the secret at a prompt so it doesn't land in your shell history, and never write it into <code>main.py</code> or any file in a repository.</div>
+        </section>
+
+        <section id="build" class="section-card reveal">
+          <h2>Build</h2>
+
+          <h3>Step 1: Set the Environment Variables</h3>
+          <p>Run these in the VS Code terminal you'll use for the rest of the lab.</p>
+          <span class="code-label">PowerShell 7</span>
+          <pre class="code" data-lang="powershell">$env:GRAPH_TENANT_ID = "&lt;tenant-id&gt;"
+$env:GRAPH_DAEMON_CLIENT_ID = "&lt;daemon-client-id&gt;"
+$env:GRAPH_DAEMON_CLIENT_SECRET = Read-Host "Daemon client secret" -MaskInput</pre>
+          <span class="code-label">Bash</span>
+          <pre class="code" data-lang="bash">export GRAPH_TENANT_ID="&lt;tenant-id&gt;"
+export GRAPH_DAEMON_CLIENT_ID="&lt;daemon-client-id&gt;"
+read -rsp "Daemon client secret: " GRAPH_DAEMON_CLIENT_SECRET &amp;&amp; export GRAPH_DAEMON_CLIENT_SECRET</pre>
+
+          <h3>Step 2: Create the Environment and Install the SDK</h3>
+          <span class="code-label">PowerShell (Windows)</span>
+          <pre class="code" data-lang="powershell">mkdir graph-lab05-python; cd graph-lab05-python
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install msgraph-sdk azure-identity</pre>
+          <span class="code-label">Bash (macOS, Linux, WSL)</span>
+          <pre class="code" data-lang="bash">mkdir graph-lab05-python &amp;&amp; cd graph-lab05-python
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install msgraph-sdk azure-identity</pre>
+          <p><strong>Expected result:</strong> The install finishes after a minute or two; <code>msgraph-sdk</code> is a large package.</p>
+          <div class="callout warning"><strong>Important:</strong> On Windows, the install fails with <code>OSError: [Errno 2] No such file or directory</code> unless long paths are enabled. An administrator enables them once with the command below (then open a new terminal; a restart might be required), or you can run this lab in WSL.</div>
+          <span class="code-label">PowerShell as administrator (one time)</span>
+          <pre class="code" data-lang="powershell">New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+    -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force</pre>
+
+          <h3>Step 3: Write main.py</h3>
+          <p>Create <code>main.py</code> with this code. The SDK is asynchronous, so the work runs inside <code>asyncio.run</code>. Paging uses <code>with_url(page.odata_next_link)</code> to request each next page.</p>
+          <span class="code-label">main.py</span>
+          <pre class="code" data-lang="python">import asyncio
+import os
+
+from azure.identity.aio import ClientSecretCredential
+from kiota_abstractions.base_request_configuration import RequestConfiguration
+from msgraph import GraphServiceClient
+from msgraph.generated.models.o_data_errors.o_data_error import ODataError
+from msgraph.generated.users.users_request_builder import UsersRequestBuilder
+
+
+async def main() -&gt; None:
+    credential = ClientSecretCredential(
+        tenant_id=os.environ["GRAPH_TENANT_ID"],
+        client_id=os.environ["GRAPH_DAEMON_CLIENT_ID"],
+        client_secret=os.environ["GRAPH_DAEMON_CLIENT_SECRET"],
+    )
+    client = GraphServiceClient(credentials=credential, scopes=["https://graph.microsoft.com/.default"])
+
+    query = UsersRequestBuilder.UsersRequestBuilderGetQueryParameters(
+        select=["displayName", "mail", "accountEnabled"],
+        top=5,
+    )
+    config = RequestConfiguration(query_parameters=query)
+
+    try:
+        page = await client.users.get(request_configuration=config)
+        count, pages = 0, 0
+        while page:
+            pages += 1
+            for user in page.value or []:
+                count += 1
+                print(f"{count:3}. {user.display_name} &lt;{user.mail or 'no mail'}&gt; enabled={user.account_enabled}")
+            if not page.odata_next_link:
+                break
+            page = await client.users.with_url(page.odata_next_link).get()
+        print(f"\n{count} users across {pages} page(s)")
+
+        await client.users.by_user_id("00000000-0000-0000-0000-000000000000").get()
+    except ODataError as error:
+        print(f"\nHTTP {error.response_status_code}: {error.error.code if error.error else 'unknown'}")
+        print(f"Message: {error.error.message if error.error else ''}")
+    finally:
+        await credential.close()
+
+
+asyncio.run(main())</pre>
+
+          <h3>Step 4: Run It</h3>
+          <span class="code-label">Terminal</span>
+          <pre class="code" data-lang="bash">python main.py</pre>
+        </section>
+
+        <section id="test" class="section-card reveal">
+          <h2>Test and Verify</h2>
+          <span class="code-label">Expected output (abridged)</span>
+          <pre class="code" data-lang="text">  1. Adele Vance &lt;adelev@&lt;your-domain&gt;&gt; enabled=True
+  2. Alex Wilber &lt;alexw@&lt;your-domain&gt;&gt; enabled=True
+  ...
+ 18. Pradeep Gupta &lt;pradeepg@&lt;your-domain&gt;&gt; enabled=True
+
+18 users across 4 page(s)
+
+HTTP 404: Request_ResourceNotFound
+Message: Resource '00000000-0000-0000-0000-000000000000' does not exist ...</pre>
+          <ul class="checklist">
+            <li>No browser sign-in happened: the job authenticated as the app.</li>
+            <li>Every user in the tenant is listed, numbered continuously across pages.</li>
+            <li>The missing user produced a handled <code>404</code>, not a stack trace.</li>
+            <li><code>main.py</code> contains no IDs or secrets.</li>
+          </ul>
+        </section>
+
+        <section id="stretch" class="section-card reveal">
+          <h2>Stretch Goals</h2>
+          <ul>
+            <li>Add a call to <code>await client.me.get()</code> and read the error: <code>/me</code> needs a signed-in user, so it can't work app-only.</li>
+            <li>Change <code>top</code> to <code>999</code> and compare the number of pages.</li>
+            <li>Add <code>filter="accountEnabled eq false"</code> to the query parameters to list only disabled accounts. See <a href="../topics/making-requests.html#filtering">Filter on the Server for Performance</a>.</li>
+            <li>In Lab 02, select <strong>Revoke admin consent</strong> for <code>User.Read.All</code>, wait a minute, run the job again, and read the <code>403</code>. Grant consent again afterward.</li>
+          </ul>
+        </section>
+
+        <section id="troubleshoot" class="section-card reveal">
+          <h2>Troubleshooting</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+            <tbody>
+              <tr><td><code>AADSTS7000215</code> invalid client secret, or <code>AADSTS7000222</code> expired secret</td><td>You used the <strong>Secret ID</strong> instead of the <strong>Value</strong>, or the secret expired. Create a new secret in Lab 02, Step 7.</td></tr>
+              <tr><td><code>AADSTS90002</code> tenant not found</td><td><code>GRAPH_TENANT_ID</code> is wrong. Copy the <strong>Directory (tenant) ID</strong> again.</td></tr>
+              <tr><td><code>AADSTS700016</code> application not found</td><td><code>GRAPH_DAEMON_CLIENT_ID</code> is wrong, or the app is in a different tenant.</td></tr>
+              <tr><td><code>403 Authorization_RequestDenied</code></td><td>Admin consent for <code>User.Read.All</code> (Application) is missing or was just granted. Check the status in Lab 02, wait a minute, and run again.</td></tr>
+              <tr><td><code>KeyError: 'GRAPH_TENANT_ID'</code></td><td>Set the variables in the same terminal (Step 1).</td></tr>
+              <tr><td><code>OSError</code> during <code>pip install</code> on Windows</td><td>Enable long paths (Step 2) or use WSL.</td></tr>
+              <tr><td><code>ModuleNotFoundError: No module named 'msgraph'</code></td><td>Activate the virtual environment, then run again.</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="cleanup" class="section-card reveal">
+          <h2>Cleanup and References</h2>
+          <ol>
+            <li>Clear the secret from your session: <code>Remove-Item Env:GRAPH_DAEMON_CLIENT_SECRET</code> (PowerShell) or <code>unset GRAPH_DAEMON_CLIENT_SECRET</code> (Bash).</li>
+            <li>Run <code>deactivate</code>, then delete the <code>graph-lab05-python</code> folder.</li>
+            <li>If you're also doing <a href="lab06-java-vscode.html">Lab 06</a>, keep the daemon app. Otherwise, delete both app registrations as described in <a href="lab02-register-app-portal.html#cleanup">Lab 02 cleanup</a>. An unused daemon with a valid secret and <code>User.Read.All</code> is a standing risk.</li>
+          </ol>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/tutorials/python-app-only" target="_blank" rel="noopener">Python app-only tutorial</a> &middot; <a href="https://learn.microsoft.com/graph/sdks/paging" target="_blank" rel="noopener">Page through a collection</a> &middot; <a href="https://learn.microsoft.com/windows/win32/fileio/maximum-file-path-limitation" target="_blank" rel="noopener">Maximum path length limitation</a></div>
+        </section>
+
+        <nav class="pager" aria-label="Lab pagination">
+          <a class="prev" href="lab04-dotnet-vscode.html"><small>Previous</small><strong>&larr; Lab 04: C# Console App</strong></a>
+          <a class="next" href="lab06-java-vscode.html"><small>Next</small><strong>Lab 06: Java &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#scenario">Scenario</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#prerequisites">Prerequisites</a>
+        <a href="#build">Build</a>
+        <a href="#test">Test and Verify</a>
+        <a href="#stretch">Stretch Goals</a>
+        <a href="#troubleshoot">Troubleshooting</a>
+        <a href="#cleanup">Cleanup</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

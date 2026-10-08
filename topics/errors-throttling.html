@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Errors and Throttling &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Read Microsoft Graph error responses, handle 429 throttling, stay within tenant-wide limits, and monitor which apps call Microsoft Graph with activity logs." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="errors-throttling">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Topics</span><span class="sep">/</span><span>Errors and Throttling</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Errors and Throttling</h1>
+      <p class="subtitle">Read an error response, keep your app healthy when Microsoft Graph asks it to slow down, stay within limits shared across the tenant, and see which apps call Microsoft Graph.</p>
+      <div class="badge-row"><span class="badge">Resilience</span><span class="badge">Administration</span><span class="badge">~10 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="error-format" class="section-card reveal">
+          <h2>The Error Response</h2>
+          <p>Errors use standard HTTP status codes plus a JSON body with a single <code>error</code> object.</p>
+          <span class="code-label">Example error body</span>
+          <pre class="code" data-lang="json">{
+  "error": {
+    "code": "Request_ResourceNotFound",
+    "message": "Resource '00000000-0000-0000-0000-000000000000' does not exist ...",
+    "innerError": {
+      "date": "2026-10-06T14:02:11",
+      "request-id": "&lt;request-id&gt;",
+      "client-request-id": "&lt;client-request-id&gt;"
+    }
+  }
+}</pre>
+          <div class="cheat">
+            <div class="cheat-item tone-green"><h3><code>code</code></h3><p>Machine-readable. Write your error handling against this value, and against the most specific nested <code>innerError</code> code you understand.</p></div>
+            <div class="cheat-item tone-red"><h3><code>message</code></h3><p>For developers only. It isn't localized and can change at any time, so don't parse it and don't show it to end users.</p></div>
+            <div class="cheat-item tone-blue"><h3><code>request-id</code></h3><p>Correlates your call with Microsoft Graph logs. Log it with every failure.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/errors" target="_blank" rel="noopener">Microsoft Graph error responses and resource types</a></div>
+        </section>
+
+        <section id="status-codes" class="section-card reveal">
+          <h2>Status Codes and What to Do</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Status</th><th>Meaning</th><th>What to do</th></tr></thead>
+            <tbody>
+              <tr><td><span class="chip chip-danger">400</span></td><td>Bad Request: the request is malformed</td><td>Check the URL, JSON body, and query parameter support for that API.</td></tr>
+              <tr><td><span class="chip chip-danger">401</span></td><td>Unauthorized: token missing or invalid</td><td>Acquire a fresh token for the right tenant and audience.</td></tr>
+              <tr><td><span class="chip chip-danger">403</span></td><td>Forbidden: not enough permission or no required license</td><td>Add and consent the least-privileged permission; check the user's role or license. <code>insufficient_claims</code> means a Conditional Access policy needs to be satisfied.</td></tr>
+              <tr><td><span class="chip chip-warning">404</span></td><td>Not Found</td><td>Check the ID and the API version; new objects can take a moment to replicate.</td></tr>
+              <tr><td><span class="chip chip-warning">409</span></td><td>Conflict with the current state</td><td>Fix the conflicting value, or retry with backoff for concurrency errors.</td></tr>
+              <tr><td><span class="chip chip-warning">413</span></td><td>Request entity too large</td><td>Keep write requests under 4 MB; use upload sessions for files.</td></tr>
+              <tr><td><span class="chip chip-warning">429</span></td><td>Too Many Requests: throttled</td><td>Wait for <code>Retry-After</code> seconds, then retry.</td></tr>
+              <tr><td><span class="chip chip-info">503</span> <span class="chip chip-info">504</span></td><td>Service unavailable or gateway timeout</td><td>Retry after a delay, honoring <code>Retry-After</code> when present.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart TD
+    E{Status code?}
+    E -->|401| T[Get a new token]
+    E -->|403| P[Fix permission or consent]
+    E -->|400 or 404| R[Fix the request]
+    E -->|429| W[Wait Retry-After]
+    E -->|503 or 504| B[Back off and retry]
+    W --> RETRY([Retry the call])
+    B --> RETRY
+    class E neutral
+    class T,P accent
+    class R danger
+    class W,B warning
+    class RETRY success
+            </pre>
+          </div>
+          <p class="diagram-caption">Purple: identity fixes. Red: code fixes. Orange: transient, retry with a delay.</p>
+        </section>
+
+        <section id="throttling" class="section-card reveal">
+          <h2>Throttling</h2>
+          <p>Microsoft Graph limits how many calls a client can make so the service stays available. Limits vary by service and by request type, so writes can be throttled while reads still succeed. When you exceed a limit, Microsoft Graph returns <code>429 Too Many Requests</code> with a suggested wait time.</p>
+          <span class="code-label">Throttled response</span>
+          <pre class="code" data-lang="http">HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+Retry-After: 10
+
+{
+  "error": {
+    "code": "TooManyRequests",
+    "message": "Please retry again later."
+  }
+}</pre>
+          <div class="cheat">
+            <div class="cheat-item tone-orange"><h3>Handle it</h3><ul><li>Wait the number of seconds in <code>Retry-After</code>, then retry.</li><li>If there's no <code>Retry-After</code>, use exponential backoff.</li><li>Don't retry immediately: throttled calls still count against your usage.</li></ul></div>
+            <div class="cheat-item tone-green"><h3>Avoid it</h3><ul><li>Use <strong>delta queries</strong> and <strong>change notifications</strong> instead of polling.</li><li>Request fewer, smaller calls with <code>$select</code> and <code>$filter</code>.</li><li>Use <strong>Microsoft Graph Data Connect</strong> for bulk extraction.</li></ul></div>
+          </div>
+          <div class="callout"><strong>Note:</strong> The Microsoft Graph SDKs retry throttled requests automatically using <code>Retry-After</code> or exponential backoff. Requests inside a <strong>JSON batch</strong> are evaluated individually and aren't retried automatically, so retry the failed ones yourself.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/throttling" target="_blank" rel="noopener">Microsoft Graph throttling guidance</a> &middot; <a href="https://learn.microsoft.com/graph/throttling-limits" target="_blank" rel="noopener">Service-specific throttling limits</a> &middot; <a href="https://learn.microsoft.com/graph/delta-query-overview" target="_blank" rel="noopener">Delta query</a></div>
+        </section>
+
+        <section id="avoid-limits" class="section-card reveal">
+          <h2>Stay Within Tenant Limits</h2>
+          <p>Microsoft Graph checks each request against several limits at once, and the first one reached triggers throttling. Some limits belong to your app alone, but others are shared by <strong>every app in the tenant</strong>, so one noisy app can slow down all the others.</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    A[Your app] --> AT{{Per app per tenant}}
+    B[Other apps] --> T{{Per tenant, all apps}}
+    AT --> T
+    A --> G{{Per app, all tenants}}
+    T --> MG[Microsoft Graph]
+    G --> MG
+    class A azure
+    class B external
+    class AT,G warning
+    class T danger
+    class MG azure
+            </pre>
+          </div>
+          <p class="diagram-caption">The tenant-wide limit (red) is shared: your app's traffic counts against the same budget as every other app in the tenant.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Scope</th><th>Example limit</th></tr></thead>
+            <tbody>
+              <tr><td>Per app, across all tenants</td><td>Global: 130,000 requests per 10 seconds, for any service</td></tr>
+              <tr><td>Per tenant, all apps</td><td>Microsoft Entra ID writes: 18,000 requests per 5 minutes</td></tr>
+              <tr><td>Per app per tenant</td><td>Microsoft Entra ID reads: 3,500 to 8,000 resource units per 10 seconds, depending on tenant size</td></tr>
+              <tr><td>Per app per mailbox</td><td>Outlook: 10,000 requests per 10 minutes and four concurrent requests</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>Note:</strong> Limits differ by service and can change. Check <a href="https://learn.microsoft.com/graph/throttling-limits" target="_blank" rel="noopener">service-specific throttling limits</a> for the APIs you call before you size a workload.</div>
+          <div class="cheat">
+            <div class="cheat-item tone-green"><h3>Ask for less</h3><ul><li><a href="making-requests.html#filtering"><code>$filter</code> and <code>$select</code></a> on every read.</li><li>Skip <code>$expand</code> unless you need it.</li><li>Cache data that rarely changes, such as group names or SKUs.</li></ul></div>
+            <div class="cheat-item tone-blue"><h3>Call less often</h3><ul><li>Replace polling and full scans with <strong>delta queries</strong> and <strong>change notifications</strong>.</li><li>Spread scheduled jobs out instead of starting them all at once.</li><li>Use <strong>Microsoft Graph Data Connect</strong> for bulk extraction; it isn't subject to throttling limits.</li></ul></div>
+            <div class="cheat-item tone-orange"><h3>Batch, but count correctly</h3><ul><li>A JSON batch holds up to 20 requests and saves network round trips.</li><li>Each request in the batch still counts against limits individually.</li></ul></div>
+            <div class="cheat-item tone-purple"><h3>Prioritize and watch</h3><ul><li>Send <code>x-ms-throttle-priority: low</code> on background Microsoft Entra ID calls so they're throttled before user-facing ones. Priority doesn't raise the limit.</li><li>Alert on <code>x-ms-throttle-limit-percentage</code>; it appears once an app uses more than 80% of its limit.</li></ul></div>
+          </div>
+          <span class="code-label">Microsoft Entra ID response headers to log</span>
+          <pre class="code" data-lang="http">x-ms-resource-unit: 2
+x-ms-throttle-limit-percentage: 0.9
+x-ms-throttle-scope: Tenant_Application/ReadWrite/&lt;app-id&gt;/&lt;tenant-id&gt;</pre>
+          <p><code>x-ms-throttle-scope</code> appears on throttled responses and tells you which budget ran out: <code>Tenant_Application</code> (your app in this tenant), <code>Tenant</code> (all apps in the tenant), or <code>Application</code> (your app everywhere).</p>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/throttling-limits" target="_blank" rel="noopener">Service-specific throttling limits</a> &middot; <a href="https://learn.microsoft.com/graph/json-batching" target="_blank" rel="noopener">JSON batching</a> &middot; <a href="https://learn.microsoft.com/graph/change-notifications-overview" target="_blank" rel="noopener">Change notifications</a></div>
+        </section>
+
+        <section id="monitor" class="section-card reveal">
+          <h2>Monitor Which Apps Call Microsoft Graph</h2>
+          <p><strong>Microsoft Graph activity logs</strong> record every HTTP request Microsoft Graph processes for your tenant: line-of-business apps, scripts, SDKs, and Microsoft apps. Send them to a Log Analytics workspace to see which apps call Microsoft Graph, how often, and which ones are throttled.</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    APPS[Apps and scripts] --> MG[Microsoft Graph]
+    MG --> DS[Diagnostic setting]
+    DS --> LA[(Log Analytics)]
+    LA --> KQL[KQL queries]
+    KQL --> AL([Dashboards and alerts])
+    class APPS external
+    class MG,DS azure
+    class LA data
+    class KQL accent
+    class AL success
+            </pre>
+          </div>
+          <p class="diagram-caption">A diagnostic setting streams the <code>MicrosoftGraphActivityLogs</code> category to your workspace.</p>
+          <h3>What You Need</h3>
+          <ul>
+            <li>A Microsoft Entra ID P1 or P2 license in the tenant.</li>
+            <li>The <strong>Security Administrator</strong> role (the least-privileged role that can configure diagnostic settings).</li>
+            <li>An Azure subscription with a Log Analytics workspace. Azure Storage and Event Hubs are also supported destinations.</li>
+          </ul>
+          <h3>Turn On the Logs</h3>
+          <ol>
+            <li>Sign in to the <a href="https://entra.microsoft.com" target="_blank" rel="noopener">Microsoft Entra admin center</a> as at least a Security Administrator.</li>
+            <li>Browse to <strong>Entra ID</strong> &gt; <strong>Monitoring &amp; health</strong> &gt; <strong>Diagnostic settings</strong>.</li>
+            <li>Select <strong>+ Add diagnostic setting</strong> and enter a <strong>Diagnostic setting name</strong>.</li>
+            <li>Select the <code>MicrosoftGraphActivityLogs</code> category.</li>
+            <li>Under <strong>Destination Details</strong>, select <strong>Send to Log Analytics workspace</strong>, choose the <strong>Subscription</strong> and workspace, and select <strong>Save</strong>.</li>
+          </ol>
+          <p>Most events arrive within 30 minutes; some take up to 2 hours.</p>
+          <h3>Query Usage per App</h3>
+          <span class="code-label">KQL: requests, failures, and throttling per app (last 24 hours)</span>
+          <pre class="code" data-lang="text">MicrosoftGraphActivityLogs
+| where TimeGenerated &gt; ago(1d)
+| summarize Requests = count(),
+            Failed = countif(ResponseStatusCode &gt;= 400),
+            Throttled = countif(ResponseStatusCode == 429)
+    by AppId
+| top 20 by Requests desc</pre>
+          <span class="code-label">KQL: peak and average requests per minute per app</span>
+          <pre class="code" data-lang="text">MicrosoftGraphActivityLogs
+| where TimeGenerated &gt; ago(1d)
+| summarize PerMinute = count() by AppId, bin(TimeGenerated, 1m)
+| summarize PeakPerMinute = max(PerMinute), AvgPerMinute = avg(PerMinute) by AppId
+| top 20 by PeakPerMinute desc</pre>
+          <span class="code-label">KQL: request rate over time, one line per app</span>
+          <pre class="code" data-lang="text">MicrosoftGraphActivityLogs
+| where TimeGenerated &gt; ago(1d)
+| summarize Requests = count() by AppId, bin(TimeGenerated, 10m)
+| render timechart</pre>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Column</th><th>Use it to</th></tr></thead>
+            <tbody>
+              <tr><td><code>AppId</code>, <code>ServicePrincipalId</code></td><td>Identify the calling app</td></tr>
+              <tr><td><code>UserId</code></td><td>See the signed-in user (empty for app-only calls)</td></tr>
+              <tr><td><code>RequestMethod</code>, <code>RequestUri</code></td><td>See what was called</td></tr>
+              <tr><td><code>ResponseStatusCode</code>, <code>DurationMs</code></td><td>Find failures, throttling, and slow calls</td></tr>
+              <tr><td><code>Roles</code>, <code>Scopes</code></td><td>See the permissions in the token</td></tr>
+              <tr><td><code>IPAddress</code>, <code>UserAgent</code></td><td>Trace where the calls come from</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout success"><strong>Tip:</strong> Turn an <code>AppId</code> into a name by searching for it in <strong>Entra ID</strong> &gt; <strong>Enterprise apps</strong>, or with <code>GET /servicePrincipals(appId='&lt;app-id&gt;')?$select=displayName</code>. Then open the app's <strong>Permissions</strong> page to review what it's allowed to call.</div>
+          <div class="callout warning"><strong>Important:</strong> Log volume grows with tenant size. Microsoft estimates about 15 GiB per month in Azure Monitor Logs for 1,000 users and about 1,200 GiB for 100,000 users. Use a workspace transformation or the Basic log plan to reduce cost, and restrict who can read the workspace: request URIs can contain sensitive values.</div>
+          <div class="callout"><strong>Note:</strong> The logs cover requests made to <em>your</em> tenant only. You can't see what a multitenant app does in other tenants.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/microsoft-graph-activity-logs-overview" target="_blank" rel="noopener">Microsoft Graph activity logs</a> &middot; <a href="https://learn.microsoft.com/entra/identity/monitoring-health/howto-integrate-activity-logs-with-azure-monitor-logs" target="_blank" rel="noopener">Integrate Microsoft Entra logs with Azure Monitor logs</a></div>
+        </section>
+
+        <section id="next" class="section-card reveal">
+          <h2>Key Takeaway</h2>
+          <div class="takeaway">
+            <h3>Key takeaway</h3>
+            <p>Branch on the status code and the error <code>code</code>, log the <code>request-id</code>, and treat <code>429</code> and <code>503</code> as "wait, then retry". Remember that tenant-wide limits are shared by every app, so filter, cache, and use change tracking, and turn on Microsoft Graph activity logs to see which apps use the budget.</p>
+          </div>
+          <ul>
+            <li>See errors live in <a href="../labs/lab01-graph-explorer.html">Lab 01</a> and handle them in code in <a href="../labs/lab04-dotnet-vscode.html">Lab 04</a>.</li>
+          </ul>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="making-requests.html"><small>Previous</small><strong>&larr; Making Requests</strong></a>
+          <a class="next" href="sdks.html"><small>Next</small><strong>Microsoft Graph SDKs &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#error-format">The Error Response</a>
+        <a href="#status-codes">Status Codes</a>
+        <a href="#throttling">Throttling</a>
+        <a href="#avoid-limits">Stay Within Tenant Limits</a>
+        <a href="#monitor">Monitor Graph Usage</a>
+        <a href="#next">Key Takeaway</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

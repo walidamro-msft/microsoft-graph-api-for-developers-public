@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Security Best Practices &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Apply least privilege to Microsoft Graph permissions, avoid high-privilege permissions, protect app credentials, and govern consent in Microsoft Entra ID." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="security-best-practices">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Topics</span><span class="sep">/</span><span>Security Best Practices</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Security Best Practices</h1>
+      <p class="subtitle">Keep Microsoft Graph apps from becoming the easiest path into your tenant: smallest permissions, strongest credentials, and consent that someone actually reviews.</p>
+      <div class="badge-row"><span class="badge">Developers and Entra ID admins</span><span class="badge">Checklist</span><span class="badge">~5 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="least-privilege" class="section-card reveal">
+          <h2>Least Privilege</h2>
+          <p>Grant the minimum permission the app needs for the operations it performs. Over-privileged apps increase exposure to unintended access, and users are less likely to consent to them.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>App needs to</th><th>Request</th><th>Not</th></tr></thead>
+            <tbody>
+              <tr><td>Read the signed-in user's profile</td><td><code>User.Read</code> (delegated)</td><td><code>User.ReadWrite</code></td></tr>
+              <tr><td>Show names and emails of colleagues</td><td><code>User.ReadBasic.All</code> (delegated)</td><td><code>User.Read.All</code></td></tr>
+              <tr><td>Read groups in the tenant without a user</td><td><code>GroupMember.Read.All</code> (application)</td><td><code>Directory.Read.All</code></td></tr>
+              <tr><td>Manage only the apps it created</td><td><code>Application.ReadWrite.OwnedBy</code></td><td><code>Application.ReadWrite.All</code></td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout success"><strong>Tip:</strong> Prefer delegated permissions whenever they meet the requirement. Application permissions reach every matching resource in the tenant without a user present, which makes them the most privileged choice.</div>
+          <div class="callout danger"><strong>Avoid:</strong> <code>Directory.AccessAsUser.All</code> is the highest-privileged delegated permission, <code>Directory.ReadWrite.All</code> is next, and <code>Directory.Read.All</code> is the highest-privileged read-only permission for Microsoft Entra ID. Use them only when no narrower permission works.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/permissions-overview#best-practices-for-using-microsoft-graph-permissions" target="_blank" rel="noopener">Best practices for using Microsoft Graph permissions</a></div>
+        </section>
+
+        <section id="credentials" class="section-card reveal">
+          <h2>Protect App Credentials</h2>
+          <div class="cheat">
+            <div class="cheat-item tone-green"><h3>Best: no secret to manage</h3><p><strong>Managed identities</strong> for code running on Azure, or <strong>federated identity credentials</strong> for GitHub Actions, Kubernetes, and other trusted issuers.</p></div>
+            <div class="cheat-item tone-blue"><h3>Good: certificate</h3><p>Microsoft recommends a certificate instead of a client secret before you move to production. Store and rotate it in Azure Key Vault.</p></div>
+            <div class="cheat-item tone-orange"><h3>Development only: client secret</h3><p>Convenient for local testing and workshops. Maximum lifetime is 24 months; Microsoft recommends less than 12 months.</p></div>
+          </div>
+          <ul>
+            <li>Never hard-code secrets or commit them to source control. Read them from environment variables, a secret store, or Key Vault.</li>
+            <li>Rotate secrets and certificates on a schedule, and monitor repositories for leaked secrets.</li>
+            <li>Leave <strong>Allow public client flows</strong> disabled unless the app really uses device code or another public client flow.</li>
+          </ul>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/entra/identity-platform/how-to-add-credentials" target="_blank" rel="noopener">Add and manage app credentials</a> &middot; <a href="https://learn.microsoft.com/entra/identity-platform/msal-client-applications" target="_blank" rel="noopener">Best practices for managing secrets</a></div>
+        </section>
+
+        <section id="data" class="section-card reveal">
+          <h2>Handle Data Responsibly</h2>
+          <ul>
+            <li>Request only the properties you use with <code>$select</code>. Less data in transit means less data to protect in logs and caches.</li>
+            <li>Use change notifications or delta queries instead of copying entire datasets on a schedule.</li>
+            <li>Don't log access tokens or full response bodies that contain personal data.</li>
+            <li>Handle <code>403</code> responses that carry <code>insufficient_claims</code>: they mean a Conditional Access policy requires the user to satisfy an extra condition, such as MFA.</li>
+          </ul>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/entra/identity-platform/v2-conditional-access-dev-guide" target="_blank" rel="noopener">Developer guidance for Microsoft Entra Conditional Access</a></div>
+        </section>
+
+        <section id="governance" class="section-card reveal">
+          <h2>Govern Consent (Entra ID Admins)</h2>
+          <div class="cheat">
+            <div class="cheat-item tone-purple"><h3>Review before you consent</h3><p>Only Privileged Role Administrators and Global Administrators can consent to application permissions. Check each request against what the app actually does.</p></div>
+            <div class="cheat-item tone-blue"><h3>Control user consent</h3><p>App consent policies decide which delegated permissions users can grant themselves. Even low-impact permissions can be restricted.</p></div>
+            <div class="cheat-item tone-red"><h3>Revoke what isn't used</h3><p>On <strong>API permissions</strong>, use <strong>Revoke admin consent</strong> and <strong>Remove permission</strong>. Delete app registrations you no longer need.</p></div>
+            <div class="cheat-item tone-gray"><h3>Isolate admin scripting</h3><p>For high-privilege PowerShell use, register a dedicated app for Microsoft Graph PowerShell and set <strong>Assignment required?</strong> to <strong>Yes</strong> so only assigned admins can use it.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/entra/identity/enterprise-apps/manage-app-consent-policies" target="_blank" rel="noopener">Manage app consent policies</a> &middot; <a href="https://learn.microsoft.com/powershell/microsoftgraph/authentication-commands" target="_blank" rel="noopener">Use a custom app for Microsoft Graph PowerShell</a></div>
+        </section>
+
+        <section id="checklist" class="section-card reveal">
+          <h2>Checklist</h2>
+          <ul class="checklist">
+            <li>Each permission maps to an operation the app performs.</li>
+            <li>Delegated permissions are used wherever a user is present.</li>
+            <li>No <code>Directory.*</code> permissions unless documented and approved.</li>
+            <li>Production apps use a managed identity, federated credential, or certificate, not a client secret.</li>
+            <li>Secrets are short-lived, stored outside source code, and rotated.</li>
+            <li>Admin consent was reviewed, and unused permissions and apps are removed.</li>
+          </ul>
+          <div class="takeaway">
+            <h3>Key takeaway</h3>
+            <p>An app registration is an identity with its own access. Give it the smallest permissions, the strongest credential you can, and an owner who reviews it.</p>
+          </div>
+          <ul>
+            <li>Apply this in <a href="../labs/lab02-register-app-portal.html">Lab 02: Register Apps in Microsoft Entra ID</a>, then start with the <a href="../labs/index.html">Labs Overview</a>.</li>
+          </ul>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="sdks.html"><small>Previous</small><strong>&larr; Microsoft Graph SDKs</strong></a>
+          <a class="next" href="resources.html"><small>Next</small><strong>Summary and Resources &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#least-privilege">Least Privilege</a>
+        <a href="#credentials">Protect App Credentials</a>
+        <a href="#data">Handle Data Responsibly</a>
+        <a href="#governance">Govern Consent</a>
+        <a href="#checklist">Checklist</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

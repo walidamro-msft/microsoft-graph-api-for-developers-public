@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Authentication and Permissions &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Register an app in Microsoft Entra ID, choose delegated or application permissions, understand consent, and send access tokens to Microsoft Graph." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="auth-permissions">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Topics</span><span class="sep">/</span><span>Authentication and Permissions</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Authentication and Permissions</h1>
+      <p class="subtitle">How your app proves who it is, what it is allowed to do, and who has to agree to it before Microsoft Graph returns any data.</p>
+      <div class="badge-row"><span class="badge">Microsoft Entra ID</span><span class="badge">Concepts</span><span class="badge">~12 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="what-is" class="section-card reveal">
+          <h2>Three Things Every Call Needs</h2>
+          <div class="quote-card">
+            <p>Microsoft Graph is a protected API gateway for accessing data in Microsoft cloud services like Microsoft Entra ID and Microsoft 365. It's protected by the Microsoft identity platform, which authorizes and verifies that an app is authorized to call Microsoft Graph.</p>
+            <cite>Source: Authentication and authorization basics, Microsoft Learn</cite>
+          </div>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>1. An app registration</h3><p>Makes your app known to the Microsoft identity platform and gives it an <strong>Application (client) ID</strong>.</p></div>
+            <div class="cheat-item tone-purple"><h3>2. Permissions with consent</h3><p>Microsoft Graph permissions such as <code>User.Read</code>, granted by a user or an admin.</p></div>
+            <div class="cheat-item tone-green"><h3>3. An access token</h3><p>Issued by Microsoft Entra ID and sent as <code>Authorization: Bearer &lt;token&gt;</code> on every request.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/auth/auth-concepts" target="_blank" rel="noopener">Authentication and authorization basics</a></div>
+        </section>
+
+        <section id="register" class="section-card reveal">
+          <h2>App Registration</h2>
+          <p>You register the app once in the <strong>Microsoft Entra admin center</strong> under <strong>Entra ID</strong> &gt; <strong>App registrations</strong>. No code is uploaded; you only describe the app to the identity platform. Registration requires at least the <strong>Application Developer</strong> role.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Setting</th><th>What it is</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Application (client) ID</strong></td><td>Unique ID that your code sends when it asks for a token.</td></tr>
+              <tr><td><strong>Directory (tenant) ID</strong></td><td>The Microsoft Entra tenant the app is registered in.</td></tr>
+              <tr><td><strong>Supported account types</strong></td><td>Who can sign in: your tenant only (recommended for most apps), any Microsoft Entra tenant, and optionally personal Microsoft accounts.</td></tr>
+              <tr><td><strong>Redirect URI</strong></td><td>Where the identity platform returns tokens for interactive sign-in. Not needed for device code or app-only flows.</td></tr>
+              <tr><td><strong>Credential</strong></td><td>A certificate, a federated identity credential, or a client secret. Only <em>confidential</em> clients have one.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="cheat">
+            <div class="cheat-item tone-orange"><h3>Public client</h3><p>Desktop, mobile, CLI, and single-page apps. The code runs on a device where a secret can't be protected, so the app has <strong>no credential</strong> and can only act on behalf of a signed-in user.</p></div>
+            <div class="cheat-item tone-blue"><h3>Confidential client</h3><p>Web apps, web APIs, and background services that run on a server. They hold a credential and can act on behalf of a user <strong>or</strong> as themselves.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/entra/identity-platform/quickstart-register-app" target="_blank" rel="noopener">Register an app in Microsoft Entra ID</a> &middot; <a href="https://learn.microsoft.com/entra/identity-platform/msal-client-applications" target="_blank" rel="noopener">Public and confidential client apps</a></div>
+        </section>
+
+        <section id="access-scenarios" class="section-card reveal">
+          <h2>Delegated and App-Only Access</h2>
+          <p>An app calls Microsoft Graph in one of two ways. The access scenario decides which permission type you request and how the token is issued.</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant A as Your app
+    participant E as Microsoft Entra ID
+    participant G as Microsoft Graph
+    rect rgba(142, 68, 173, 0.12)
+    Note over U,G: Delegated access (on behalf of a user)
+    U->>E: Sign in and consent
+    E-->>A: Token for user + app
+    A->>G: GET /v1.0/me with Bearer token
+    G-->>A: Data the user can access
+    end
+    rect rgba(0, 120, 212, 0.12)
+    Note over A,G: App-only access (no user)
+    A->>E: Client ID + credential, scope .default
+    E-->>A: Token for the app
+    A->>G: GET /v1.0/users with Bearer token
+    G-->>A: Data the app roles allow
+    end
+            </pre>
+          </div>
+          <p class="diagram-caption">Purple band: a user is present. Blue band: the app acts with its own identity.</p>
+          <div class="cheat">
+            <div class="cheat-item tone-purple"><h3>Delegated access</h3><p>The app acts <em>on behalf of a signed-in user</em>. Both the app and the user must be authorized: the app can never access anything the user can't.</p></div>
+            <div class="cheat-item tone-blue"><h3>App-only access</h3><p>The app acts <em>with its own identity</em>, for example a nightly sync or a backup daemon. It can access any data its application permissions cover across the tenant.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/auth/auth-concepts#access-scenarios" target="_blank" rel="noopener">Access scenarios</a></div>
+        </section>
+
+        <section id="permissions" class="section-card reveal">
+          <h2>Permission Types and Names</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th></th><th>Delegated permissions</th><th>Application permissions</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Also called</strong></td><td>Scopes, OAuth2 permissions</td><td>App roles, app-only permissions</td></tr>
+              <tr><td><strong>Used by</strong></td><td>Web, mobile, desktop, and single-page apps with a user</td><td>Web apps and daemons without a user</td></tr>
+              <tr><td><strong>Effective access</strong></td><td>Permission <em>and</em> the user's own access</td><td>Everything the permission covers in the tenant</td></tr>
+              <tr><td><strong>Who can consent</strong></td><td>Users for their own data (if tenant policy allows); admins for everyone</td><td>Only an admin</td></tr>
+              <tr><td><strong>Stored as</strong></td><td><code>oAuth2PermissionGrant</code></td><td><code>appRoleAssignment</code></td></tr>
+            </tbody>
+          </table></div>
+          <p>Permission names follow the pattern <code>{resource}.{operation}.{constraint}</code>. When the constraint is missing, access is limited to the signed-in user's own data.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Permission</th><th>Allows the app to</th></tr></thead>
+            <tbody>
+              <tr><td><code>User.Read</code></td><td>Read the signed-in user's profile</td></tr>
+              <tr><td><code>User.ReadBasic.All</code></td><td>Read basic profile properties of all users</td></tr>
+              <tr><td><code>User.Read.All</code></td><td>Read full profiles of all users</td></tr>
+              <tr><td><code>Group.Create</code></td><td>Create groups, but not modify or delete them</td></tr>
+              <tr><td><code>Application.ReadWrite.OwnedBy</code></td><td>Manage only the apps it created or owns</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>Note:</strong> The same name can exist as both types. <code>User.Read.All</code> as a <em>delegated</em> permission is limited by the user's access; as an <em>application</em> permission it reads every user in the tenant.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/permissions-overview" target="_blank" rel="noopener">Overview of Microsoft Graph permissions</a> &middot; <a href="https://learn.microsoft.com/graph/permissions-reference" target="_blank" rel="noopener">Permissions reference</a></div>
+        </section>
+
+        <section id="consent" class="section-card reveal">
+          <h2>Consent</h2>
+          <p>A permission does nothing until someone consents to it. Consent is recorded in the tenant, so it's a governance decision, not just a developer setting.</p>
+          <ul>
+            <li><strong>User consent</strong> works for low-impact delegated permissions such as <code>User.Read</code> or <code>User.ReadBasic.All</code>, when your tenant's app consent policy allows it.</li>
+            <li><strong>Admin consent</strong> is required for higher-impact delegated permissions such as <code>User.Read.All</code>, and for <strong>every</strong> application permission.</li>
+            <li>Only a <strong>Privileged Role Administrator</strong> or <strong>Global Administrator</strong> can consent to application permissions.</li>
+            <li>In the portal, admins select <strong>API permissions</strong> &gt; <strong>Grant admin consent for &lt;tenant&gt;</strong> on the app registration.</li>
+          </ul>
+          <div class="callout"><strong>Note:</strong> App-only apps request the special scope <code>https://graph.microsoft.com/.default</code>. It means "all application permissions already configured and consented on this app registration", so you add them in the portal first.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/entra/identity-platform/quickstart-configure-app-access-web-apis" target="_blank" rel="noopener">Configure API permissions and admin consent</a></div>
+        </section>
+
+        <section id="configure" class="section-card reveal">
+          <h2>Create an App Registration and Grant Graph Permissions</h2>
+          <p>Both permission types are added on the same <strong>API permissions</strong> page of an app registration. The difference is which tab you pick and who has to consent.</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart TD
+    REG[New registration] --> IDS[Record client and tenant IDs]
+    IDS --> ADD[API permissions: Add a permission]
+    ADD --> MG[Microsoft Graph]
+    MG --> Q{User signed in?}
+    Q -->|Yes| DEL[Delegated permissions]
+    Q -->|No| APPP[Application permissions]
+    DEL --> UC[User or admin consents]
+    APPP --> AC[Grant admin consent]
+    AC --> CRED[Add a credential]
+    class REG,IDS,ADD,MG azure
+    class Q neutral
+    class DEL,UC accent
+    class APPP azure
+    class AC warning
+    class CRED success
+            </pre>
+          </div>
+          <p class="diagram-caption">The path splits at the permission type. Application permissions always need admin consent and a credential.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Step</th><th>Delegated (user present)</th><th>Application (no user)</th></tr></thead>
+            <tbody>
+              <tr><td><strong>1. Register</strong></td><td colspan="2"><strong>Entra ID</strong> &gt; <strong>App registrations</strong> &gt; <strong>New registration</strong>; choose single tenant; record the <strong>Application (client) ID</strong> and <strong>Directory (tenant) ID</strong>.</td></tr>
+              <tr><td><strong>2. Platform</strong></td><td>Add a redirect URI for interactive sign-in, or set <strong>Allow public client flows</strong> to <strong>Yes</strong> for device code.</td><td>No redirect URI needed.</td></tr>
+              <tr><td><strong>3. Add permissions</strong></td><td><strong>API permissions</strong> &gt; <strong>Add a permission</strong> &gt; <strong>Microsoft Graph</strong> &gt; <strong>Delegated permissions</strong>, for example <code>User.ReadBasic.All</code>.</td><td><strong>API permissions</strong> &gt; <strong>Add a permission</strong> &gt; <strong>Microsoft Graph</strong> &gt; <strong>Application permissions</strong>, for example <code>User.Read.All</code>. Remove <code>User.Read</code> if unused.</td></tr>
+              <tr><td><strong>4. Consent</strong></td><td>Users consent at first sign-in, or an admin selects <strong>Grant admin consent</strong>.</td><td>An admin <strong>must</strong> select <strong>Grant admin consent for &lt;tenant&gt;</strong>.</td></tr>
+              <tr><td><strong>5. Credential</strong></td><td>None for public clients; web apps add one.</td><td><strong>Certificates &amp; secrets</strong>: a certificate or federated credential in production, a short-lived secret for testing.</td></tr>
+              <tr><td><strong>6. Request a token</strong></td><td>Ask for the scopes you need, such as <code>User.Read</code>.</td><td>Ask for <code>https://graph.microsoft.com/.default</code>.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout success"><strong>Tip:</strong> Follow every step in the portal in <a href="../labs/lab02-register-app-portal.html">Lab 02: Register Apps in Microsoft Entra ID</a>, which creates one app of each type.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/entra/identity-platform/quickstart-register-app" target="_blank" rel="noopener">Register an app</a> &middot; <a href="https://learn.microsoft.com/entra/identity-platform/quickstart-configure-app-access-web-apis" target="_blank" rel="noopener">Add permissions and grant admin consent</a> &middot; <a href="https://learn.microsoft.com/entra/identity-platform/how-to-add-credentials" target="_blank" rel="noopener">Add credentials</a></div>
+        </section>
+
+        <section id="tokens" class="section-card reveal">
+          <h2>Access Tokens</h2>
+          <p>The app attaches the token to every request in the <code>Authorization</code> header. Microsoft Graph validates the token and its claims, which include the app's permissions and, for delegated access, the user.</p>
+          <span class="code-label">HTTP request</span>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/me HTTP/1.1
+Host: graph.microsoft.com
+Authorization: Bearer &lt;access-token&gt;</pre>
+          <p>Don't build token requests by hand. Use an authentication library that handles caching, refresh, and protocol details for you:</p>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>Azure Identity</h3><p>Credential classes such as <code>DeviceCodeCredential</code>, <code>InteractiveBrowserCredential</code>, and <code>ClientSecretCredential</code>. The Microsoft Graph SDKs accept these directly.</p></div>
+            <div class="cheat-item tone-purple"><h3>MSAL</h3><p>The Microsoft Authentication Library for .NET, Java, Python, JavaScript, and mobile platforms. Azure Identity uses it internally.</p></div>
+          </div>
+          <div class="callout warning"><strong>Important:</strong> Treat an access token like a password while it's valid. Don't paste tokens into chat, tickets, or shared tools.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/auth/auth-concepts#access-tokens" target="_blank" rel="noopener">Access tokens</a></div>
+        </section>
+
+        <section id="decision" class="section-card reveal">
+          <h2>How to Choose</h2>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart TD
+    Q1{Is a user signed in?}
+    Q1 -->|Yes| DEL[Delegated permissions]
+    Q1 -->|No| APPONLY[Application permissions]
+    DEL --> Q2{Where does the code run?}
+    Q2 -->|Desktop, mobile, SPA| PUB[Public client, no credential]
+    Q2 -->|Web server| CONF1[Confidential client]
+    APPONLY --> CONF2[Confidential client]
+    CONF2 --> ADM[Admin consent required]
+    CONF2 --> CRED[Certificate or managed identity]
+    class Q1,Q2 neutral
+    class DEL accent
+    class APPONLY azure
+    class PUB warning
+    class CONF1,CONF2 azure
+    class ADM warning
+    class CRED success
+            </pre>
+          </div>
+          <p class="diagram-caption">Gray diamonds are decisions. Orange marks a constraint you must plan for. Green is the recommended credential.</p>
+          <div class="takeaway">
+            <h3>Key takeaway</h3>
+            <p>Use delegated permissions whenever a user is present; app-only access is the most privileged option. Request the smallest permission that does the job, and remember that application permissions always need an admin.</p>
+          </div>
+          <ul>
+            <li>Practice both registrations in <a href="../labs/lab02-register-app-portal.html">Lab 02: Register Apps in Microsoft Entra ID</a>.</li>
+            <li>Read the full guidance in <a href="security-best-practices.html">Security Best Practices</a>.</li>
+          </ul>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="setup-environment.html"><small>Previous</small><strong>&larr; Set Up Your Environment</strong></a>
+          <a class="next" href="graph-explorer.html"><small>Next</small><strong>Graph Explorer &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#what-is">Three Things Every Call Needs</a>
+        <a href="#register">App Registration</a>
+        <a href="#access-scenarios">Delegated and App-Only</a>
+        <a href="#permissions">Permission Types and Names</a>
+        <a href="#consent">Consent</a>
+        <a href="#configure">Grant Graph Permissions</a>
+        <a href="#tokens">Access Tokens</a>
+        <a href="#decision">How to Choose</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

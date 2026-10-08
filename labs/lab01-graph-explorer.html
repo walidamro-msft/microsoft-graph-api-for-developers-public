@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 01: Explore Microsoft Graph with Graph Explorer &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Run Microsoft Graph queries in Graph Explorer: sample data, your own tenant, $select, $filter, advanced queries, consent, error responses, and code snippets." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="lab01-graph-explorer">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><a href="index.html">Labs</a><span class="sep">/</span><span>Lab 01</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Lab 01: Explore Microsoft Graph with Graph Explorer</h1>
+      <p class="subtitle">Send real Microsoft Graph requests from your browser, shape the responses, consent to permissions, and read an error, without writing any code.</p>
+      <div class="badge-row"><span class="badge">Browser</span><span class="badge">Beginner</span><span class="badge">~10 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="scenario" class="section-card reveal">
+          <h2>Scenario and Objectives</h2>
+          <p>You're about to integrate an app with Microsoft 365 and want to see the real request and response shapes first. You use Graph Explorer to try the requests your app will make.</p>
+          <ul>
+            <li>Run a sample query against demo data, then against your own tenant.</li>
+            <li>Shape responses with <code>$select</code>, <code>$filter</code>, and <code>$top</code>, and spot <code>@odata.nextLink</code>.</li>
+            <li>Run an advanced query with <code>ConsistencyLevel: eventual</code>.</li>
+            <li>Consent to a permission and read a Microsoft Graph error response.</li>
+            <li>Find the SDK code for a request.</li>
+          </ul>
+          <div class="callout"><strong>Related topic:</strong> <a href="../topics/graph-explorer.html">Graph Explorer</a> &middot; <a href="../topics/making-requests.html">Making Requests</a> &middot; <a href="../topics/errors-throttling.html">Errors and Throttling</a></div>
+        </section>
+
+        <section id="architecture" class="section-card reveal">
+          <h2>Architecture</h2>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    YOU[You in a browser] --> GE[Graph Explorer]
+    GE -->|sign in, consent| ENTRA[Microsoft Entra ID]
+    GE -->|REST + token| GRAPH[graph.microsoft.com]
+    GRAPH --> DATA[(Your tenant data)]
+    GE -.->|signed out| DEMO[(Sample tenant)]
+    class YOU external
+    class GE azure
+    class ENTRA accent
+    class GRAPH azure
+    class DATA,DEMO data
+            </pre>
+          </div>
+          <p class="diagram-caption">Signed out, Graph Explorer queries a sample tenant. Signed in, it uses your account and the permissions you consent to.</p>
+        </section>
+
+        <section id="prerequisites" class="section-card reveal">
+          <h2>Prerequisites and Names</h2>
+          <ul>
+            <li>A modern browser.</li>
+            <li>A work or school account in a <strong>test or developer tenant</strong>. A Microsoft 365 E5 developer sandbox from the Microsoft 365 Developer Program works well if you qualify.</li>
+            <li>For Step 5, the ability to consent to <code>User.ReadBasic.All</code> (most users can; your tenant policy decides).</li>
+          </ul>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Value</th><th>Where you use it</th></tr></thead>
+            <tbody>
+              <tr><td><code>&lt;your-domain&gt;</code></td><td>Your tenant's email domain, for example <code>contoso.onmicrosoft.com</code> (Step 6)</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout warning"><strong>Important:</strong> Graph Explorer runs requests against the tenant you sign in to. This lab only reads data, but don't run <code>POST</code>, <code>PATCH</code>, or <code>DELETE</code> requests against a production tenant.</div>
+        </section>
+
+        <section id="build" class="section-card reveal">
+          <h2>Build</h2>
+
+          <h3>Step 1: Run a Sample Query Without Signing In</h3>
+          <ol>
+            <li>Open <a href="https://aka.ms/ge" target="_blank" rel="noopener">Graph Explorer</a> (<code>aka.ms/ge</code>).</li>
+            <li>In the left pane, select the <strong>Sample queries</strong> tab and choose <strong>Get my profile</strong>.</li>
+            <li>Confirm the query box shows <code>GET</code>, <code>v1.0</code>, and <code>https://graph.microsoft.com/v1.0/me</code>, then select <strong>Run query</strong>.</li>
+          </ol>
+          <p><strong>Expected result:</strong> A <code>200</code> status and a JSON profile for a sample user appear in <strong>Response preview</strong>.</p>
+
+          <h3>Step 2: Sign In to Your Tenant</h3>
+          <ol>
+            <li>Select the profile avatar in the top-right corner and sign in with your test-tenant account.</li>
+            <li>Accept the consent prompt for the basic permissions Graph Explorer requests.</li>
+            <li>Run <strong>Get my profile</strong> again.</li>
+          </ol>
+          <p><strong>Expected result:</strong> The response now shows <em>your</em> <code>displayName</code> and <code>userPrincipalName</code>.</p>
+
+          <h3>Step 3: Return Only the Properties You Need</h3>
+          <ol>
+            <li>Replace the query with the following URL and select <strong>Run query</strong>.</li>
+          </ol>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/me?$select=displayName,mail,jobTitle,officeLocation</pre>
+          <ol start="2">
+            <li>Compare the response with Step 2: only the four selected properties are returned.</li>
+            <li>Select the <strong>Response headers</strong> tab and find <code>request-id</code>.</li>
+          </ol>
+          <div class="callout"><strong>Note:</strong> Without <code>$select</code>, some responses include an <code>@microsoft.graph.tips</code> property recommending it. That's Microsoft Graph telling you to ask for less data.</div>
+
+          <h3>Step 4: Filter and Page Through Users</h3>
+          <ol>
+            <li>Run this query:</li>
+          </ol>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/users?$select=displayName,mail&amp;$top=3</pre>
+          <ol start="2">
+            <li>If you get a <code>403</code>, continue with Step 5, then come back.</li>
+            <li>Scroll to the end of the response and find <code>@odata.nextLink</code>. Copy its full value into the query box and run it to get the next page.</li>
+            <li>Now filter by name:</li>
+          </ol>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/users?$filter=startswith(displayName,'A')&amp;$select=displayName,mail</pre>
+          <p><strong>Expected result:</strong> Only users whose display name starts with <strong>A</strong> are returned.</p>
+
+          <h3>Step 5: Consent to a Permission</h3>
+          <ol>
+            <li>Select the <strong>Modify permissions</strong> tab.</li>
+            <li>Find <code>User.ReadBasic.All</code> (the least-privileged permission for listing users) and select <strong>Consent</strong>.</li>
+            <li>Complete the consent prompt, then run the Step 4 queries again.</li>
+          </ol>
+          <div class="callout"><strong>Note:</strong> <strong>Modify permissions</strong> lists the permissions that can run the current query. Choose the least-privileged one that works. If you see <strong>Need admin approval</strong>, your tenant requires an admin to consent.</div>
+
+          <h3>Step 6: Run an Advanced Query</h3>
+          <ol>
+            <li>Run this query, replacing <code>&lt;your-domain&gt;</code>:</li>
+          </ol>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/users?$filter=endsWith(mail,'@&lt;your-domain&gt;')&amp;$count=true&amp;$select=displayName,mail</pre>
+          <ol start="2">
+            <li>Read the error: the <code>endsWith</code> operator requires advanced query parameters.</li>
+            <li>Select <strong>Request headers</strong>, add the key <code>ConsistencyLevel</code> with the value <code>eventual</code>, and run the query again.</li>
+          </ol>
+          <p><strong>Expected result:</strong> A <code>200</code> response with an <code>@odata.count</code> value and the matching users.</p>
+
+          <h3>Step 7: Read an Error Response</h3>
+          <ol>
+            <li>Remove the <code>ConsistencyLevel</code> header, then run a request for a user that doesn't exist:</li>
+          </ol>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/users/00000000-0000-0000-0000-000000000000</pre>
+          <ol start="2">
+            <li>In the response, find the HTTP status, <code>error.code</code>, <code>error.message</code>, and <code>innerError.request-id</code>.</li>
+          </ol>
+          <p><strong>Expected result:</strong> A <code>404</code> with an <code>error</code> object. The <code>code</code> is the value your app should branch on.</p>
+
+          <h3>Step 8: Get the SDK Code</h3>
+          <ol>
+            <li>Run <code>GET https://graph.microsoft.com/v1.0/me?$select=displayName,mail</code> again.</li>
+            <li>Select the <strong>Code snippets</strong> tab and switch between <strong>C#</strong>, <strong>Java</strong>, and <strong>PowerShell</strong>.</li>
+          </ol>
+          <p><strong>Expected result:</strong> The same request appears as SDK code. You write code like this in Labs 03 to 06.</p>
+        </section>
+
+        <section id="test" class="section-card reveal">
+          <h2>Test and Verify</h2>
+          <ul class="checklist">
+            <li>You ran <code>GET /me</code> against both the sample tenant and your own tenant.</li>
+            <li><code>$select</code> returned only the properties you asked for.</li>
+            <li>You followed an <code>@odata.nextLink</code> to a second page of users.</li>
+            <li>The <code>endsWith</code> query failed without <code>ConsistencyLevel: eventual</code> and succeeded with it.</li>
+            <li>You can point to <code>error.code</code> and <code>request-id</code> in a <code>404</code> response.</li>
+          </ul>
+        </section>
+
+        <section id="stretch" class="section-card reveal">
+          <h2>Stretch Goals</h2>
+          <ul>
+            <li>Run <code>GET https://graph.microsoft.com/v1.0/me/memberOf?$select=displayName</code> and compare it with <code>/me/transitiveMemberOf</code>.</li>
+            <li>Open the <strong>Resources</strong> tab and browse the <strong>users</strong> resource to discover relationships you haven't used yet.</li>
+            <li>Switch the version dropdown to <strong>beta</strong> for <code>GET /me</code> and compare the properties returned.</li>
+          </ul>
+        </section>
+
+        <section id="troubleshoot" class="section-card reveal">
+          <h2>Troubleshooting</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+            <tbody>
+              <tr><td><code>403 Forbidden</code> with <code>Authorization_RequestDenied</code></td><td>Consent to the permission on <strong>Modify permissions</strong> (Step 5), then run the query again.</td></tr>
+              <tr><td><strong>Need admin approval</strong> during consent</td><td>Your tenant restricts user consent. Ask an admin, or use a developer tenant where you're an admin.</td></tr>
+              <tr><td><code>Request_UnsupportedQuery</code> for <code>endsWith</code></td><td>Add the <code>ConsistencyLevel: eventual</code> header <em>and</em> <code>$count=true</code>.</td></tr>
+              <tr><td>Empty <code>value</code> array</td><td>The filter matched nothing. Check the domain or starting letter, and that users exist in the tenant.</td></tr>
+              <tr><td>Responses still show sample data</td><td>You aren't signed in. Check the profile avatar.</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="cleanup" class="section-card reveal">
+          <h2>Cleanup and References</h2>
+          <p>This lab creates no resources and has no cost. Sign out from the profile avatar when you finish. Consenting to Graph Explorer adds it as an enterprise application in your tenant; admins can review or revoke its permissions under <strong>Entra ID</strong> &gt; <strong>Enterprise apps</strong>.</p>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/graph-explorer/graph-explorer-overview" target="_blank" rel="noopener">Use Graph Explorer to try Microsoft Graph APIs</a> &middot; <a href="https://learn.microsoft.com/graph/graph-explorer/graph-explorer-features" target="_blank" rel="noopener">Work with Graph Explorer</a> &middot; <a href="https://learn.microsoft.com/graph/aad-advanced-queries" target="_blank" rel="noopener">Advanced queries</a></div>
+        </section>
+
+        <nav class="pager" aria-label="Lab pagination">
+          <a class="prev" href="index.html"><small>Previous</small><strong>&larr; Labs Overview</strong></a>
+          <a class="next" href="lab02-register-app-portal.html"><small>Next</small><strong>Lab 02: Register Apps &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#scenario">Scenario</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#prerequisites">Prerequisites</a>
+        <a href="#build">Build</a>
+        <a href="#test">Test and Verify</a>
+        <a href="#stretch">Stretch Goals</a>
+        <a href="#troubleshoot">Troubleshooting</a>
+        <a href="#cleanup">Cleanup</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

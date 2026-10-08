@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Detailed Training Guide &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Module-by-module talk track and lab facilitation notes for the Microsoft Graph API for Developers workshop, built from the deck speaker notes." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="trainer">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Workshop Home</a><span class="sep">/</span><a href="index.html">Trainer Hub</a><span class="sep">/</span><span>Detailed Training Guide</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Detailed Training Guide</h1>
+      <p class="subtitle">Module-by-module talk track built from the speaker notes in <code>resources/slides/Microsoft Graph API Fundamentals for .NET Developers.pptx</code>, corrected against current Microsoft Learn.</p>
+      <div class="badge-row"><span class="badge">Trainer-only</span><span class="badge">Facilitation guide</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="before" class="section-card reveal">
+          <h2>Before the Session</h2>
+          <ul>
+            <li>Confirm every attendee has a <strong>test tenant</strong> with an admin role that can grant consent to application permissions. This is the most common blocker; resolve it before the day.</li>
+            <li>Microsoft employees aren't eligible for Microsoft 365 Developer Program sandboxes. Plan a different test tenant for internal audiences.</li>
+            <li>Windows attendees doing Lab 05 (Python) must enable long paths (admin) in advance, or use WSL.</li>
+            <li>Lab 06 (Java) attendees need Maven on <code>PATH</code>; the first <code>mvn</code> run downloads dependencies, so warm the cache before the session if the network is slow.</li>
+            <li>Ask attendees to note whether their tenant blocks device code flow with Conditional Access (Lab 04).</li>
+          </ul>
+        </section>
+
+        <section id="overview" class="section-card reveal">
+          <h2>What Is Microsoft Graph (Slides 2 to 6)</h2>
+          <ul>
+            <li>Anchor line: one endpoint, one token, one request model. Show the services image (slide 4) with the core resources table, then the network image and relationship diagram.</li>
+            <li>The deck says "Azure Active Directory": say <strong>Microsoft Entra ID</strong> throughout.</li>
+            <li>Slide 5 maps to the four capability cards; slide 6 use cases map to the Use Case Scenarios table. Ask the room which row matches their current project, and whether it's delegated or app-only.</li>
+            <li>AI agents (not in the deck): frame it as "context plus tools". Graph API for actions, the Copilot Retrieval API for grounding, and the MCP Server for Enterprise (preview) for natural-language directory queries. Call out the Copilot license requirement for the Copilot APIs.</li>
+            <li>Misconception: "Graph needs an Azure subscription." Only metered APIs do. Standard APIs come with user licenses.</li>
+            <li>Mention Copilot connectors (formerly Graph connectors) and Data Connect only to place them; the workshop is about the API.</li>
+          </ul>
+        </section>
+
+        <section id="setup" class="section-card reveal">
+          <h2>Set Up Your Environment (Slides 7 to 8)</h2>
+          <ul>
+            <li>Send this page as a pre-read. Open the session by asking who has a test tenant and the right role; pair attendees who don't.</li>
+            <li>The deck lists Visual Studio and .NET only; the page adds VS Code, PowerShell 7, Python, and Java for the multi-language labs.</li>
+          </ul>
+        </section>
+
+        <section id="auth" class="section-card reveal">
+          <h2>Authentication and Permissions (Slides 9 to 10)</h2>
+          <ul>
+            <li>Walk the sequence diagram top band (delegated) then bottom band (app-only). Ask: "Which band can read every mailbox?"</li>
+            <li>Stress that delegated effective access is the intersection of app permission and user access.</li>
+            <li>Correct slide 9: you <em>create</em> a credential, and only confidential clients have one.</li>
+            <li>Use the "Grant Graph Permissions" table to preview Lab 02: same page, different tab, different consent.</li>
+            <li>Entra ID admins in the room: point to the consent section and the governance cards on the security page.</li>
+          </ul>
+        </section>
+
+        <section id="explorer" class="section-card reveal">
+          <h2>Graph Explorer (Slides 11 to 14)</h2>
+          <ul>
+            <li>Demo live at <code>aka.ms/ge</code>: signed out with sample data first, then signed in to the test tenant.</li>
+            <li>Show <code>/me</code> with and without <code>$select</code>, then the <code>endsWith</code> query without and with <code>ConsistencyLevel</code>. This sets up Lab 01.</li>
+            <li>Walk the tabs: <strong>Modify permissions</strong>, <strong>Access token</strong> (paste into a decoder offline), <strong>Response headers</strong>, <strong>Code snippets</strong>.</li>
+            <li>Warn that signed-in writes change real data in the tenant.</li>
+          </ul>
+        </section>
+
+        <section id="requests" class="section-card reveal">
+          <h2>Making Requests and Errors (Slides 15 to 18)</h2>
+          <ul>
+            <li>Correct slide 17: <strong>PATCH</strong> updates; <strong>PUT</strong> replaces. Write requests are capped at 4 MB.</li>
+            <li>Use the create, update, and delete examples to show status codes: <code>201</code> with a body, <code>204</code> without.</li>
+            <li>For slide 18, show the error JSON and say: code against <code>error.code</code>, log <code>request-id</code>, never parse <code>message</code>.</li>
+            <li>Throttling: <code>Retry-After</code> first, backoff second, delta queries and change notifications to avoid it.</li>
+            <li>Show the client-side vs. server-side filter cards, then ask: "How many pages does <code>GET /users</code> take in your tenant?"</li>
+            <li>Stress that tenant-wide limits are shared. For Entra ID admins, walk the activity logs setup and the per-app KQL queries; mention the P1/P2 license and Log Analytics cost before anyone turns it on.</li>
+          </ul>
+        </section>
+
+        <section id="sdks" class="section-card reveal">
+          <h2>SDKs and Security (Slides 19 to 23)</h2>
+          <ul>
+            <li>The deck is .NET-only; show the "same call in four languages" section to set up Labs 03 to 06.</li>
+            <li>Slide 22 maps to "Work with Resources and Data Types": polymorphic group members and the OData cast.</li>
+            <li>Explain that the SDK retries throttled calls automatically, except inside JSON batches.</li>
+            <li>Close on the security checklist; ask each attendee which permission in their current project they could narrow.</li>
+          </ul>
+        </section>
+
+        <section id="wrap-up" class="section-card reveal">
+          <h2>Summary and Resources (Slides 24 to 25)</h2>
+          <ul>
+            <li>Read one takeaway per module from the summary table, then show the resources cards: <code>aka.ms/graph</code> and <code>aka.ms/ge</code>.</li>
+          </ul>
+        </section>
+
+        <section id="labs" class="section-card reveal">
+          <h2>Lab Facilitation</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Lab</th><th>Watch for</th><th>Quick unblock</th></tr></thead>
+            <tbody>
+              <tr><td>01</td><td><code>403</code> on <code>/users</code></td><td>Consent <code>User.ReadBasic.All</code> on <strong>Modify permissions</strong>.</td></tr>
+              <tr><td>02</td><td><strong>Grant admin consent</strong> greyed out</td><td>Attendee isn't Privileged Role Administrator or Global Administrator in the test tenant.</td></tr>
+              <tr><td>02</td><td>Copied Secret ID instead of Value</td><td>Create a new secret; values can't be retrieved.</td></tr>
+              <tr><td>03</td><td>Sign-in window hidden behind VS Code</td><td>Use <code>-UseDeviceCode</code>.</td></tr>
+              <tr><td>04</td><td><code>AADSTS7000218</code></td><td>Enable <strong>Allow public client flows</strong> on the user app.</td></tr>
+              <tr><td>05</td><td>Python install <code>OSError</code> on Windows</td><td>Long paths not enabled; switch to WSL or move to Lab 06 (Java).</td></tr>
+              <tr><td>06</td><td><code>mvn</code> not found or <code>invalid target release</code></td><td>Maven not on <code>PATH</code>, or <code>JAVA_HOME</code> points to a JDK older than 11.</td></tr>
+            </tbody>
+          </table></div>
+          <ul>
+            <li>Stretch goals for early finishers are at the end of each lab.</li>
+            <li>End the session by having everyone delete both app registrations (Lab 02 cleanup) while you watch.</li>
+          </ul>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="index.html"><small>Previous</small><strong>&larr; Trainer Hub</strong></a>
+          <a class="next" href="../index.html"><small>Next</small><strong>Workshop Home &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#before">Before the Session</a>
+        <a href="#overview">What Is Microsoft Graph</a>
+        <a href="#setup">Set Up Your Environment</a>
+        <a href="#auth">Authentication and Permissions</a>
+        <a href="#explorer">Graph Explorer</a>
+        <a href="#requests">Requests and Errors</a>
+        <a href="#sdks">SDKs and Security</a>
+        <a href="#wrap-up">Summary and Resources</a>
+        <a href="#labs">Lab Facilitation</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Making Requests &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Build Microsoft Graph REST requests: HTTP methods, v1.0 and beta, resources, OData query parameters, advanced queries, paging, and the tools to test them." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="making-requests">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Topics</span><span class="sep">/</span><span>Making Requests</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Making Requests</h1>
+      <p class="subtitle">Read and write Microsoft Graph data with plain HTTP: the request shape, query parameters that shrink responses, and paging through large collections.</p>
+      <div class="badge-row"><span class="badge">REST and OData</span><span class="badge">Concepts</span><span class="badge">~10 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="anatomy" class="section-card reveal">
+          <h2>Anatomy of a Request</h2>
+          <div class="formula">{HTTP method} https://graph.microsoft.com/{version}/{resource}?{query-parameters}</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Part</th><th>Example</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Method</strong></td><td><code>GET</code></td><td>What you want to do with the resource</td></tr>
+              <tr><td><strong>Version</strong></td><td><code>v1.0</code></td><td>Generally available or preview APIs</td></tr>
+              <tr><td><strong>Resource</strong></td><td><code>users/{id}/memberOf</code></td><td>The entity, collection, or relationship you address</td></tr>
+              <tr><td><strong>Query parameters</strong></td><td><code>$select=displayName</code></td><td>Shape, filter, sort, and page the response</td></tr>
+              <tr><td><strong>Headers</strong></td><td><code>Authorization</code>, <code>ConsistencyLevel</code></td><td>Token and request options</td></tr>
+            </tbody>
+          </table></div>
+          <p>Every response carries an HTTP <strong>status code</strong>, an optional JSON body, an <code>@odata.nextLink</code> when more pages exist, and response headers including <code>request-id</code>. Keep the <code>request-id</code>: it's what Microsoft support asks for.</p>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/use-the-api" target="_blank" rel="noopener">Use the Microsoft Graph API</a></div>
+        </section>
+
+        <section id="methods" class="section-card reveal">
+          <h2>HTTP Methods</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Method</th><th>Does</th><th>Body</th></tr></thead>
+            <tbody>
+              <tr><td><code>GET</code></td><td>Read data from a resource</td><td>None</td></tr>
+              <tr><td><code>POST</code></td><td>Create a resource or perform an action, such as <code>/me/sendMail</code></td><td>JSON</td></tr>
+              <tr><td><code>PATCH</code></td><td>Update a resource with new values, or upsert it</td><td>JSON with only the changed properties</td></tr>
+              <tr><td><code>PUT</code></td><td>Replace a resource with a new one</td><td>JSON or content</td></tr>
+              <tr><td><code>DELETE</code></td><td>Remove a resource</td><td>None</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>Note:</strong> Use <code>PATCH</code>, not <code>PUT</code>, to update most Microsoft Graph resources. <code>PUT</code> replaces the whole resource and is used by a smaller set of APIs, such as uploading file content.</div>
+          <div class="callout warning"><strong>Important:</strong> Write requests are limited to 4 MB, and some APIs are lower. Larger requests fail with <code>413 Request Entity Too Large</code>; use the upload session APIs for large files.</div>
+        </section>
+
+        <section id="write-requests" class="section-card reveal">
+          <h2>Create, Update, and Delete</h2>
+          <p>Write requests send JSON with a <code>Content-Type: application/json</code> header. Successful writes often return no body, so check the status code.</p>
+          <span class="code-label">POST: create a security group (201 Created, returns the group)</span>
+          <pre class="code" data-lang="http">POST https://graph.microsoft.com/v1.0/groups
+Content-Type: application/json
+
+{
+  "displayName": "Graph Workshop",
+  "mailEnabled": false,
+  "mailNickname": "graph-workshop",
+  "securityEnabled": true
+}</pre>
+          <span class="code-label">PATCH: update your own profile (204 No Content)</span>
+          <pre class="code" data-lang="http">PATCH https://graph.microsoft.com/v1.0/me
+Content-Type: application/json
+
+{
+  "officeLocation": "18/2111"
+}</pre>
+          <span class="code-label">DELETE: remove the group (204 No Content)</span>
+          <pre class="code" data-lang="http">DELETE https://graph.microsoft.com/v1.0/groups/{group-id}</pre>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>Send only what changes</h3><p>A <code>PATCH</code> body contains only the properties you update. Everything else keeps its value.</p></div>
+            <div class="cheat-item tone-orange"><h3>Writes need more permission</h3><p>Creating a group needs <code>Group.ReadWrite.All</code> (delegated) or <code>Group.Create</code> (application); reading needs less. Each API reference page lists the least-privileged option.</p></div>
+            <div class="cheat-item tone-teal"><h3>Deletes can be soft</h3><p>Deleted Microsoft 365 and security groups can be restored for 30 days.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/api/group-post-groups" target="_blank" rel="noopener">Create group</a> &middot; <a href="https://learn.microsoft.com/graph/api/user-update" target="_blank" rel="noopener">Update user</a> &middot; <a href="https://learn.microsoft.com/graph/api/group-delete" target="_blank" rel="noopener">Delete group</a></div>
+        </section>
+
+        <section id="direct" class="section-card reveal">
+          <h2>Call the API Directly</h2>
+          <p>Microsoft Graph is plain HTTPS, so any HTTP client works: <code>curl</code>, <code>HttpClient</code>, <code>requests</code>, or <code>Invoke-RestMethod</code>. Add the token in the <code>Authorization</code> header and read the JSON that comes back.</p>
+          <span class="code-label">Bash</span>
+          <pre class="code" data-lang="bash">curl -s "https://graph.microsoft.com/v1.0/me?\$select=displayName,mail" \
+  -H "Authorization: Bearer $TOKEN"</pre>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">$headers = @{ Authorization = "Bearer $env:TOKEN" }
+Invoke-RestMethod -Uri 'https://graph.microsoft.com/v1.0/me?$select=displayName,mail' -Headers $headers</pre>
+          <div class="cheat">
+            <div class="cheat-item tone-green"><h3>Good for</h3><ul><li>Understanding exactly what goes over the wire.</li><li>Languages without a Microsoft Graph SDK.</li><li>A single call where an SDK is too heavy.</li></ul></div>
+            <div class="cheat-item tone-orange"><h3>You handle it yourself</h3><ul><li>Getting and refreshing tokens (use MSAL or Azure Identity).</li><li>Retrying <code>429</code> and <code>503</code> responses.</li><li>Following <code>@odata.nextLink</code>.</li></ul></div>
+          </div>
+          <div class="callout warning"><strong>Important:</strong> For quick tests you can copy a token from Graph Explorer's <strong>Access token</strong> tab. Keep it in an environment variable, never in a script or a shared file, and let it expire.</div>
+          <p>The <a href="sdks.html">Microsoft Graph SDKs</a> do the token, retry, and paging work for you, which is why the code labs use them.</p>
+        </section>
+
+        <section id="versions" class="section-card reveal">
+          <h2>v1.0 and beta</h2>
+          <div class="cheat">
+            <div class="cheat-item tone-green"><h3><span class="chip chip-success">GA</span> v1.0</h3><p>Generally available APIs. Use v1.0 for all production apps.</p></div>
+            <div class="cheat-item tone-orange"><h3><span class="chip chip-warning">Preview</span> beta</h3><p>Preview APIs that can change with breaking changes. Use beta only to test apps that are still in development.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/versioning-and-support" target="_blank" rel="noopener">Versioning, support, and breaking change policies</a></div>
+        </section>
+
+        <section id="query-parameters" class="section-card reveal">
+          <h2>Query Parameters</h2>
+          <p>OData system query options shape <code>GET</code> responses. Support varies by API and version, so check the <strong>Optional query parameters</strong> section of each API reference page. Always include the <code>$</code> prefix.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Parameter</th><th>Does</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td><code>$select</code></td><td>Returns only the properties you list</td><td><code>/users?$select=displayName,mail</code></td></tr>
+              <tr><td><code>$filter</code></td><td>Returns only matching items</td><td><code>/users?$filter=startswith(displayName,'A')</code></td></tr>
+              <tr><td><code>$top</code></td><td>Sets the page size</td><td><code>/users?$top=5</code></td></tr>
+              <tr><td><code>$orderby</code></td><td>Sorts results</td><td><code>/users?$orderby=displayName</code></td></tr>
+              <tr><td><code>$expand</code></td><td>Includes a related resource</td><td><code>/me?$expand=manager</code></td></tr>
+              <tr><td><code>$count</code></td><td>Adds the total count</td><td><code>/me/messages?$count=true</code></td></tr>
+              <tr><td><code>$search</code></td><td>Matches a search expression</td><td><code>/me/messages?$search="pizza"</code></td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout success"><strong>Tip:</strong> Always use <code>$select</code>. It reduces payload size and improves performance, and for directory objects such as users and groups, v1.0 returns only a default subset of properties unless you ask for others with <code>$select</code>.</div>
+          <div class="callout"><strong>Note:</strong> Unsupported query parameters sometimes fail silently. If a result looks unfiltered, check the API reference before you trust it.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/query-parameters" target="_blank" rel="noopener">Use query parameters to customize responses</a></div>
+        </section>
+
+        <section id="filtering" class="section-card reveal">
+          <h2>Filter on the Server for Performance</h2>
+          <p>Every item and property you download and then throw away costs network time, memory, and throttling quota. Let Microsoft Graph do the filtering: ask for fewer rows with <code>$filter</code>, fewer columns with <code>$select</code>, and bigger pages with <code>$top</code> where the API allows it.</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    ALL[(Whole collection)] --> F["$filter: fewer rows"]
+    F --> S["$select: fewer properties"]
+    S --> T["$top: page size"]
+    T --> APP([Small response])
+    class ALL data
+    class F,S,T azure
+    class APP success
+            </pre>
+          </div>
+          <p class="diagram-caption">Each step shrinks the response before it leaves Microsoft Graph.</p>
+          <span class="code-label">Avoid: download every user, page by page, then discard most of them in code</span>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/users</pre>
+          <span class="code-label">Prefer: return only enabled Sales users, with three properties each</span>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/users?$filter=department eq 'Sales' and accountEnabled eq true&amp;$select=id,displayName,mail</pre>
+          <h3>Filter Operators</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Type</th><th>Operators</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td>Equality</td><td><code>eq</code>, <code>ne</code>, <code>not</code>, <code>in</code>, <code>has</code></td><td><code>/users?$filter=department in ('Retail', 'Sales')</code></td></tr>
+              <tr><td>Relational</td><td><code>lt</code>, <code>gt</code>, <code>le</code>, <code>ge</code></td><td><code>/me/messages?$filter=receivedDateTime ge 2026-09-01</code></td></tr>
+              <tr><td>Functions</td><td><code>startswith</code>, <code>endswith</code>, <code>contains</code></td><td><code>/users?$filter=startswith(userPrincipalName, 'admin')</code></td></tr>
+              <tr><td>Conditional</td><td><code>and</code>, <code>or</code></td><td><code>/me/messages?$filter=receivedDateTime ge 2026-09-01 and receivedDateTime lt 2026-10-01</code></td></tr>
+              <tr><td>Lambda (collections)</td><td><code>any</code></td><td><code>/groups?$filter=groupTypes/any(c:c eq 'Unified')</code></td></tr>
+            </tbody>
+          </table></div>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>Check support first</h3><p>The property table on each resource reference page lists which <code>$filter</code> operators each property supports. Unsupported filters can fail, or be ignored without an error.</p></div>
+            <div class="cheat-item tone-purple"><h3>Advanced queries</h3><p>On users, groups, and other directory objects, <code>ne</code>, <code>not</code>, <code>endswith</code>, and filtering on collection counts need <code>ConsistencyLevel: eventual</code> and <code>$count=true</code>. See <a href="#advanced-queries">Advanced Queries</a>.</p></div>
+            <div class="cheat-item tone-gray"><h3>Syntax details</h3><ul><li>Quote strings: <code>'Sales'</code>.</li><li>Don't quote GUIDs or <code>DateTimeOffset</code> values.</li><li><code>all</code> isn't supported; negate <code>any</code> with <code>not</code>.</li></ul></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Performance habit</th><th>Why it helps</th></tr></thead>
+            <tbody>
+              <tr><td>Always <code>$select</code> the properties you use</td><td>Smaller payloads. For Microsoft Entra objects, <code>$select</code> also lowers the request's throttling cost by 1 resource unit.</td></tr>
+              <tr><td>Use <code>$filter</code> instead of reading everything</td><td>Fewer pages, fewer calls, less data to process.</td></tr>
+              <tr><td>Use <code>$expand</code> only when you need the related data</td><td>For Microsoft Entra objects, <code>$expand</code> raises the request's throttling cost by 1 resource unit.</td></tr>
+              <tr><td>Add <code>$count=true</code> only when you need the total</td><td>On directory objects, <code>$count</code> needs advanced query parameters, which return eventually consistent results.</td></tr>
+              <tr><td>Use <a href="https://learn.microsoft.com/graph/delta-query-overview" target="_blank" rel="noopener">delta queries</a> for repeated reads</td><td>After the first full read, you get only what changed.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>Note:</strong> Items that reference properties your app isn't allowed to read are left out of filtered results. If a filter returns fewer items than you expect, check permissions as well as the expression.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/filter-query-parameter" target="_blank" rel="noopener">Use the $filter query parameter</a> &middot; <a href="https://learn.microsoft.com/graph/throttling-limits#identity-and-access-service-limits" target="_blank" rel="noopener">Request costs for identity and access</a></div>
+        </section>
+
+        <section id="advanced-queries" class="section-card reveal">
+          <h2>Advanced Queries on Directory Objects</h2>
+          <p>Users, groups, applications, devices, and other Microsoft Entra objects support extra query capabilities that run against a separate index. You turn them on with two <em>advanced query parameters</em>:</p>
+          <ul>
+            <li>The request header <code>ConsistencyLevel: eventual</code></li>
+            <li>The query string <code>$count=true</code> (not needed for <code>$search</code>)</li>
+          </ul>
+          <span class="code-label">Disabled accounts, using the ne operator</span>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/users?$filter=accountEnabled ne true&amp;$count=true&amp;$select=displayName
+ConsistencyLevel: eventual</pre>
+          <div class="cheat">
+            <div class="cheat-item tone-purple"><h3>Needs advanced query parameters</h3><ul><li><code>ne</code> and <code>not</code> operators</li><li><code>endsWith</code> on <code>mail</code> or <code>userPrincipalName</code></li><li><code>$search</code> on directory objects</li><li><code>$filter</code> and <code>$orderby</code> together</li><li><code>/users/$count</code></li></ul></div>
+            <div class="cheat-item tone-gray"><h3>Watch out</h3><ul><li><code>$expand</code> isn't supported in advanced queries.</li><li>Results are eventually consistent: new objects can take a moment to appear.</li><li>The header isn't copied to the next page automatically.</li></ul></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/aad-advanced-queries" target="_blank" rel="noopener">Advanced query capabilities on Microsoft Entra ID objects</a></div>
+        </section>
+
+        <section id="paging" class="section-card reveal">
+          <h2>Paging</h2>
+          <p>Collections come back one page at a time. <code>GET /users</code> returns 100 users per page by default; <code>$top</code> sets a different page size where the API allows it. When more data exists, the response includes <code>@odata.nextLink</code>.</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    REQ[GET /users?$top=5] --> PAGE[Process page]
+    PAGE --> Q{nextLink present?}
+    Q -->|Yes| NEXT[GET the full nextLink URL]
+    NEXT --> PAGE
+    Q -->|No| DONE([All results read])
+    class REQ azure
+    class PAGE data
+    class Q neutral
+    class NEXT warning
+    class DONE success
+            </pre>
+          </div>
+          <p class="diagram-caption">Keep requesting the full <code>@odata.nextLink</code> URL until it no longer appears.</p>
+          <ul>
+            <li>Use the <strong>entire</strong> <code>@odata.nextLink</code> URL. Don't extract <code>$skiptoken</code> and build your own URL.</li>
+            <li>A page can contain zero items and still have a next link.</li>
+            <li>Custom headers such as <code>ConsistencyLevel</code> must be added again to each page request.</li>
+            <li>The SDKs include a <strong>PageIterator</strong> that follows next links for you.</li>
+          </ul>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/paging" target="_blank" rel="noopener">Paging Microsoft Graph data in your app</a> &middot; <a href="https://learn.microsoft.com/graph/sdks/paging" target="_blank" rel="noopener">Page through a collection with the SDKs</a></div>
+        </section>
+
+        <section id="tools" class="section-card reveal">
+          <h2>Tools for Trying Requests</h2>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>Graph Explorer</h3><p>Web tool at <a href="https://aka.ms/ge" target="_blank" rel="noopener">aka.ms/ge</a>. Run queries against sample data or your tenant, find permissions, and copy SDK code. See <a href="graph-explorer.html">Graph Explorer</a>.</p></div>
+            <div class="cheat-item tone-purple"><h3>Microsoft Graph PowerShell</h3><p><code>Invoke-MgGraphRequest</code> sends any REST call with the PowerShell session's token, useful for APIs that don't have a cmdlet yet.</p></div>
+            <div class="cheat-item tone-gray"><h3>Postman</h3><p>Use the Microsoft Graph Postman collection to save and share requests.</p></div>
+          </div>
+          <div class="callout warning"><strong>Important:</strong> Write requests in Graph Explorer change real data in the tenant you sign in to. Use a developer or test tenant.</div>
+          <div class="takeaway">
+            <h3>Key takeaway</h3>
+            <p>Use v1.0, filter and <code>$select</code> on the server so you only receive what you need, add <code>ConsistencyLevel: eventual</code> and <code>$count=true</code> for advanced directory queries, and always follow <code>@odata.nextLink</code>.</p>
+          </div>
+          <ul>
+            <li>Practice in <a href="../labs/lab01-graph-explorer.html">Lab 01: Explore Microsoft Graph with Graph Explorer</a>.</li>
+          </ul>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/graph-explorer/graph-explorer-overview" target="_blank" rel="noopener">Use Graph Explorer to try Microsoft Graph APIs</a></div>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="graph-explorer.html"><small>Previous</small><strong>&larr; Graph Explorer</strong></a>
+          <a class="next" href="errors-throttling.html"><small>Next</small><strong>Errors and Throttling &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#anatomy">Anatomy of a Request</a>
+        <a href="#methods">HTTP Methods</a>
+        <a href="#write-requests">Create, Update, Delete</a>
+        <a href="#direct">Call the API Directly</a>
+        <a href="#versions">v1.0 and beta</a>
+        <a href="#query-parameters">Query Parameters</a>
+        <a href="#filtering">Filter for Performance</a>
+        <a href="#advanced-queries">Advanced Queries</a>
+        <a href="#paging">Paging</a>
+        <a href="#tools">Tools</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

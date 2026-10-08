@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 06: Call Microsoft Graph App-Only from Java &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Build a Java background job with Maven that authenticates with client credentials, lists users with PageIterator, and handles errors, reading its secret from the environment." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="lab06-java">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><a href="index.html">Labs</a><span class="sep">/</span><span>Lab 06</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Lab 06: Call Microsoft Graph App-Only from Java</h1>
+      <p class="subtitle">Build the nightly user report as a Java daemon: no signed-in user, a client credential from the environment, and <code>PageIterator</code> to read every user in the tenant.</p>
+      <div class="badge-row"><span class="badge">VS Code &middot; Java</span><span class="badge">Intermediate</span><span class="badge">~15 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="scenario" class="section-card reveal">
+          <h2>Scenario and Objectives</h2>
+          <p>A scheduled job must list every user and whether the account is enabled. Nobody signs in when it runs, so it uses app-only access with the daemon app from Lab 02.</p>
+          <ul>
+            <li>Authenticate with <code>ClientSecretCredential</code> and the <code>.default</code> scope.</li>
+            <li>Read the client secret from an environment variable, never from code.</li>
+            <li>List users with <code>$select</code> and <code>$top</code>, and let <code>PageIterator</code> follow every page.</li>
+            <li>Catch <code>ODataError</code> for a missing user.</li>
+          </ul>
+          <div class="callout"><strong>Note:</strong> <a href="lab05-python-vscode.html">Lab 05</a> builds the same job in Python. Do either one, or both to compare the SDKs.</div>
+          <div class="callout"><strong>Related topic:</strong> <a href="../topics/auth-permissions.html#access-scenarios">Delegated and App-Only Access</a> &middot; <a href="../topics/sdks.html#credentials">Choose a Credential</a></div>
+        </section>
+
+        <section id="architecture" class="section-card reveal">
+          <h2>Architecture</h2>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    ENV[(Environment variables)] --> JOB[Java job]
+    JOB -->|client ID + secret| ENTRA[Microsoft Entra ID]
+    ENTRA -->|app-only token| JOB
+    JOB -->|GET /users, paged| GRAPH[graph.microsoft.com]
+    GRAPH --> USERS[(All users)]
+    class ENV data
+    class JOB azure
+    class ENTRA accent
+    class GRAPH azure
+    class USERS data
+            </pre>
+          </div>
+          <p class="diagram-caption">The job proves its own identity with the secret. The token carries the <code>User.Read.All</code> app role that an admin consented to in Lab 02.</p>
+        </section>
+
+        <section id="prerequisites" class="section-card reveal">
+          <h2>Prerequisites and Names</h2>
+          <ul>
+            <li>The <code>graph-workshop-daemon-&lt;suffix&gt;</code> app from <a href="lab02-register-app-portal.html">Lab 02</a> with <code>User.Read.All</code> (Application) granted, and its client secret value.</li>
+            <li>JDK 11 or later and Apache Maven 3.9 or later on <code>PATH</code>.</li>
+            <li>The VS Code <strong>Extension Pack for Java</strong>.</li>
+          </ul>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Environment variable</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td><code>GRAPH_TENANT_ID</code></td><td>Directory (tenant) ID</td></tr>
+              <tr><td><code>GRAPH_DAEMON_CLIENT_ID</code></td><td>Application (client) ID of <code>graph-workshop-daemon-&lt;suffix&gt;</code></td></tr>
+              <tr><td><code>GRAPH_DAEMON_CLIENT_SECRET</code></td><td>The client secret <strong>Value</strong></td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout warning"><strong>Important:</strong> Enter the secret at a prompt so it doesn't land in your shell history, and never write it into <code>App.java</code> or any file in a repository.</div>
+        </section>
+
+        <section id="build" class="section-card reveal">
+          <h2>Build</h2>
+
+          <h3>Step 1: Set the Environment Variables</h3>
+          <p>Run these in the VS Code terminal you'll use for the rest of the lab.</p>
+          <span class="code-label">PowerShell 7</span>
+          <pre class="code" data-lang="powershell">$env:GRAPH_TENANT_ID = "&lt;tenant-id&gt;"
+$env:GRAPH_DAEMON_CLIENT_ID = "&lt;daemon-client-id&gt;"
+$env:GRAPH_DAEMON_CLIENT_SECRET = Read-Host "Daemon client secret" -MaskInput</pre>
+          <span class="code-label">Bash</span>
+          <pre class="code" data-lang="bash">export GRAPH_TENANT_ID="&lt;tenant-id&gt;"
+export GRAPH_DAEMON_CLIENT_ID="&lt;daemon-client-id&gt;"
+read -rsp "Daemon client secret: " GRAPH_DAEMON_CLIENT_SECRET &amp;&amp; export GRAPH_DAEMON_CLIENT_SECRET</pre>
+
+          <h3>Step 2: Create the Maven Project</h3>
+          <ol>
+            <li>Create a folder named <code>graph-lab06-java</code> and open it in VS Code.</li>
+            <li>Create <code>pom.xml</code> in the folder root:</li>
+          </ol>
+          <span class="code-label">pom.xml</span>
+          <pre class="code" data-lang="xml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"&gt;
+  &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+  &lt;groupId&gt;com.contoso&lt;/groupId&gt;
+  &lt;artifactId&gt;graph-lab06&lt;/artifactId&gt;
+  &lt;version&gt;1.0.0&lt;/version&gt;
+
+  &lt;properties&gt;
+    &lt;maven.compiler.release&gt;11&lt;/maven.compiler.release&gt;
+    &lt;project.build.sourceEncoding&gt;UTF-8&lt;/project.build.sourceEncoding&gt;
+  &lt;/properties&gt;
+
+  &lt;dependencies&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;com.microsoft.graph&lt;/groupId&gt;
+      &lt;artifactId&gt;microsoft-graph&lt;/artifactId&gt;
+      &lt;version&gt;6.70.0&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;com.azure&lt;/groupId&gt;
+      &lt;artifactId&gt;azure-identity&lt;/artifactId&gt;
+      &lt;version&gt;1.18.6&lt;/version&gt;
+    &lt;/dependency&gt;
+  &lt;/dependencies&gt;
+
+  &lt;build&gt;
+    &lt;plugins&gt;
+      &lt;plugin&gt;
+        &lt;groupId&gt;org.codehaus.mojo&lt;/groupId&gt;
+        &lt;artifactId&gt;exec-maven-plugin&lt;/artifactId&gt;
+        &lt;version&gt;3.5.0&lt;/version&gt;
+        &lt;configuration&gt;
+          &lt;mainClass&gt;com.contoso.graph.App&lt;/mainClass&gt;
+        &lt;/configuration&gt;
+      &lt;/plugin&gt;
+    &lt;/plugins&gt;
+  &lt;/build&gt;
+&lt;/project&gt;</pre>
+
+          <h3>Step 3: Write App.java</h3>
+          <p>Create <code>src/main/java/com/contoso/graph/App.java</code>. The Java SDK is synchronous; <code>PageIterator</code> follows <code>@odata.nextLink</code> for you.</p>
+          <span class="code-label">src/main/java/com/contoso/graph/App.java</span>
+          <pre class="code" data-lang="java">package com.contoso.graph;
+
+import com.azure.identity.ClientSecretCredential;
+import com.azure.identity.ClientSecretCredentialBuilder;
+import com.microsoft.graph.core.tasks.PageIterator;
+import com.microsoft.graph.models.User;
+import com.microsoft.graph.models.UserCollectionResponse;
+import com.microsoft.graph.models.odataerrors.ODataError;
+import com.microsoft.graph.serviceclient.GraphServiceClient;
+
+public class App {
+    public static void main(String[] args) throws Exception {
+        ClientSecretCredential credential = new ClientSecretCredentialBuilder()
+                .tenantId(requireEnv("GRAPH_TENANT_ID"))
+                .clientId(requireEnv("GRAPH_DAEMON_CLIENT_ID"))
+                .clientSecret(requireEnv("GRAPH_DAEMON_CLIENT_SECRET"))
+                .build();
+        GraphServiceClient graphClient =
+                new GraphServiceClient(credential, "https://graph.microsoft.com/.default");
+
+        try {
+            UserCollectionResponse firstPage = graphClient.users().get(config -&gt; {
+                config.queryParameters.select = new String[] {"displayName", "mail", "accountEnabled"};
+                config.queryParameters.top = 5;
+            });
+
+            int[] count = {0};
+            PageIterator&lt;User, UserCollectionResponse&gt; iterator =
+                    new PageIterator.Builder&lt;User, UserCollectionResponse&gt;()
+                            .client(graphClient)
+                            .collectionPage(firstPage)
+                            .collectionPageFactory(UserCollectionResponse::createFromDiscriminatorValue)
+                            .processPageItemCallback(user -&gt; {
+                                count[0]++;
+                                System.out.printf("%3d. %s &lt;%s&gt; enabled=%s%n", count[0],
+                                        user.getDisplayName(),
+                                        user.getMail() == null ? "no mail" : user.getMail(),
+                                        user.getAccountEnabled());
+                                return true;
+                            })
+                            .build();
+            iterator.iterate();
+            System.out.printf("%n%d users%n", count[0]);
+
+            graphClient.users().byUserId("00000000-0000-0000-0000-000000000000").get();
+        } catch (ODataError e) {
+            System.out.printf("%nHTTP %d: %s%n", e.getResponseStatusCode(), e.getError().getCode());
+            System.out.println("Message: " + e.getError().getMessage());
+        }
+    }
+
+    private static String requireEnv(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Set the " + name + " environment variable.");
+        }
+        return value;
+    }
+}</pre>
+
+          <h3>Step 4: Run It</h3>
+          <span class="code-label">Terminal</span>
+          <pre class="code" data-lang="bash">mvn -q compile exec:java</pre>
+          <p><strong>Expected result:</strong> The first run downloads dependencies, then prints the user list.</p>
+        </section>
+
+        <section id="test" class="section-card reveal">
+          <h2>Test and Verify</h2>
+          <span class="code-label">Expected output (abridged)</span>
+          <pre class="code" data-lang="text">  1. Adele Vance &lt;adelev@&lt;your-domain&gt;&gt; enabled=true
+  2. Alex Wilber &lt;alexw@&lt;your-domain&gt;&gt; enabled=true
+  ...
+ 18. Pradeep Gupta &lt;pradeepg@&lt;your-domain&gt;&gt; enabled=true
+
+18 users
+
+HTTP 404: Request_ResourceNotFound
+Message: Resource '00000000-0000-0000-0000-000000000000' does not exist ...</pre>
+          <ul class="checklist">
+            <li>No browser sign-in happened: the job authenticated as the app.</li>
+            <li>Every user in the tenant is listed, numbered continuously across pages.</li>
+            <li>The missing user produced a handled <code>404</code>, not a stack trace.</li>
+            <li><code>App.java</code> and <code>pom.xml</code> contain no IDs or secrets.</li>
+          </ul>
+        </section>
+
+        <section id="stretch" class="section-card reveal">
+          <h2>Stretch Goals</h2>
+          <ul>
+            <li>Add a call to <code>graphClient.me().get()</code> and read the error: <code>/me</code> needs a signed-in user, so it can't work app-only.</li>
+            <li>Change <code>top</code> to <code>999</code>: the output is the same, but <code>PageIterator</code> makes far fewer requests.</li>
+            <li>Set <code>config.queryParameters.filter = "accountEnabled eq false";</code> to list only disabled accounts. See <a href="../topics/making-requests.html#filtering">Filter on the Server for Performance</a>.</li>
+            <li>In Lab 02, select <strong>Revoke admin consent</strong> for <code>User.Read.All</code>, wait a minute, run the job again, and read the <code>403</code>. Grant consent again afterward.</li>
+          </ul>
+        </section>
+
+        <section id="troubleshoot" class="section-card reveal">
+          <h2>Troubleshooting</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+            <tbody>
+              <tr><td><code>AADSTS7000215</code> invalid client secret, or <code>AADSTS7000222</code> expired secret</td><td>You used the <strong>Secret ID</strong> instead of the <strong>Value</strong>, or the secret expired. Create a new secret in Lab 02, Step 7.</td></tr>
+              <tr><td><code>AADSTS90002</code> tenant not found</td><td><code>GRAPH_TENANT_ID</code> is wrong. Copy the <strong>Directory (tenant) ID</strong> again.</td></tr>
+              <tr><td><code>AADSTS700016</code> application not found</td><td><code>GRAPH_DAEMON_CLIENT_ID</code> is wrong, or the app is in a different tenant.</td></tr>
+              <tr><td><code>403 Authorization_RequestDenied</code></td><td>Admin consent for <code>User.Read.All</code> (Application) is missing or was just granted. Check the status in Lab 02, wait a minute, and run again.</td></tr>
+              <tr><td><code>Set the ... environment variable.</code></td><td>Set the variables in the same terminal (Step 1).</td></tr>
+              <tr><td><code>mvn</code> isn't recognized</td><td>Install Apache Maven and add its <code>bin</code> folder to <code>PATH</code>, then open a new terminal.</td></tr>
+              <tr><td><code>invalid target release: 11</code></td><td>Maven is using an older JDK. Point <code>JAVA_HOME</code> at JDK 11 or later and check with <code>mvn -v</code>.</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="cleanup" class="section-card reveal">
+          <h2>Cleanup and References</h2>
+          <ol>
+            <li>Clear the secret from your session: <code>Remove-Item Env:GRAPH_DAEMON_CLIENT_SECRET</code> (PowerShell) or <code>unset GRAPH_DAEMON_CLIENT_SECRET</code> (Bash).</li>
+            <li>Delete the <code>graph-lab06-java</code> folder.</li>
+            <li>Delete both app registrations as described in <a href="lab02-register-app-portal.html#cleanup">Lab 02 cleanup</a>. An unused daemon with a valid secret and <code>User.Read.All</code> is a standing risk.</li>
+          </ol>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/tutorials/java-app-only" target="_blank" rel="noopener">Java app-only tutorial</a> &middot; <a href="https://learn.microsoft.com/graph/sdks/paging" target="_blank" rel="noopener">Page through a collection</a></div>
+        </section>
+
+        <nav class="pager" aria-label="Lab pagination">
+          <a class="prev" href="lab05-python-vscode.html"><small>Previous</small><strong>&larr; Lab 05: Python</strong></a>
+          <a class="next" href="../index.html"><small>Finish</small><strong>Workshop Home &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#scenario">Scenario</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#prerequisites">Prerequisites</a>
+        <a href="#build">Build</a>
+        <a href="#test">Test and Verify</a>
+        <a href="#stretch">Stretch Goals</a>
+        <a href="#troubleshoot">Troubleshooting</a>
+        <a href="#cleanup">Cleanup</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

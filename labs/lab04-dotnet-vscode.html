@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 04: Build a C# Console App with the Graph .NET SDK &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Build a .NET console app in VS Code that signs in with device code flow, reads the user's profile, pages through users with PageIterator, and handles ODataError." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="lab04-dotnet">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><a href="index.html">Labs</a><span class="sep">/</span><span>Lab 04</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Lab 04: Build a C# Console App with the Graph .NET SDK</h1>
+      <p class="subtitle">Sign a user in with device code flow, read their profile, list colleagues across pages, and handle a Microsoft Graph error the way production code should.</p>
+      <div class="badge-row"><span class="badge">VS Code &middot; C#</span><span class="badge">Intermediate</span><span class="badge">~15 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="scenario" class="section-card reveal">
+          <h2>Scenario and Objectives</h2>
+          <p>You're building an internal command-line tool that greets the signed-in user and shows the people in their organization. It must use the user's own permissions, not a shared secret.</p>
+          <ul>
+            <li>Create a .NET console app with the <code>Microsoft.Graph</code> and <code>Azure.Identity</code> packages.</li>
+            <li>Authenticate with <code>DeviceCodeCredential</code> using the Lab 02 public client.</li>
+            <li>Call <code>GET /me</code> with <code>$select</code>.</li>
+            <li>Page through <code>GET /users</code> with <code>PageIterator</code>.</li>
+            <li>Catch <code>ODataError</code> and log the status, error code, and <code>request-id</code>.</li>
+          </ul>
+          <div class="callout"><strong>Related topic:</strong> <a href="../topics/sdks.html">Microsoft Graph SDKs</a> &middot; <a href="../topics/errors-throttling.html">Errors and Throttling</a></div>
+        </section>
+
+        <section id="architecture" class="section-card reveal">
+          <h2>Architecture</h2>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart TD
+    APP[".NET console app"] -->|device code request| ENTRA[Microsoft Entra ID]
+    USER[You in a browser] -->|enter code, sign in| ENTRA
+    ENTRA -.->|delegated token| APP
+    APP -->|GET /me, GET /users| GRAPH[graph.microsoft.com]
+    class USER external
+    class APP azure
+    class ENTRA accent
+    class GRAPH azure
+            </pre>
+          </div>
+          <p class="diagram-caption">The app shows a code, you sign in on any browser, and Microsoft Entra ID returns a token scoped to <code>User.Read</code> and <code>User.ReadBasic.All</code>.</p>
+        </section>
+
+        <section id="prerequisites" class="section-card reveal">
+          <h2>Prerequisites and Names</h2>
+          <ul>
+            <li><a href="https://dotnet.microsoft.com/download" target="_blank" rel="noopener">.NET 8 SDK</a> or later. Check with <code>dotnet --list-sdks</code>.</li>
+            <li>VS Code with the <strong>C# Dev Kit</strong> extension.</li>
+            <li>The <code>graph-workshop-user-&lt;suffix&gt;</code> app from <a href="lab02-register-app-portal.html">Lab 02</a>, with <strong>Allow public client flows</strong> set to <strong>Yes</strong>.</li>
+          </ul>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Environment variable</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td><code>GRAPH_CLIENT_ID</code></td><td>Application (client) ID of <code>graph-workshop-user-&lt;suffix&gt;</code></td></tr>
+              <tr><td><code>GRAPH_TENANT_ID</code></td><td>Directory (tenant) ID</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="build" class="section-card reveal">
+          <h2>Build</h2>
+
+          <h3>Step 1: Create the Project</h3>
+          <ol>
+            <li>Open a terminal in VS Code in a folder outside any Git repository you share.</li>
+            <li>Create the project and add the packages:</li>
+          </ol>
+          <span class="code-label">Terminal</span>
+          <pre class="code" data-lang="bash">dotnet new console -o GraphLab04
+cd GraphLab04
+dotnet add package Microsoft.Graph
+dotnet add package Azure.Identity
+code -r .</pre>
+          <p><strong>Expected result:</strong> The project opens in VS Code, and <code>GraphLab04.csproj</code> lists both packages.</p>
+
+          <h3>Step 2: Set the App Settings</h3>
+          <p>The client ID and tenant ID aren't secrets, but keeping them out of code means you can reuse the app with any registration.</p>
+          <span class="code-label">PowerShell</span>
+          <pre class="code" data-lang="powershell">$env:GRAPH_CLIENT_ID = "&lt;user-app-client-id&gt;"
+$env:GRAPH_TENANT_ID = "&lt;tenant-id&gt;"</pre>
+          <span class="code-label">Bash</span>
+          <pre class="code" data-lang="bash">export GRAPH_CLIENT_ID="&lt;user-app-client-id&gt;"
+export GRAPH_TENANT_ID="&lt;tenant-id&gt;"</pre>
+
+          <h3>Step 3: Create the Graph Client</h3>
+          <p>Replace the contents of <code>Program.cs</code> with the following. <code>DeviceCodeCredential</code> prints a sign-in message; <code>GraphServiceClient</code> uses the credential to get tokens for the scopes you list.</p>
+          <span class="code-label">Program.cs (part 1)</span>
+          <pre class="code" data-lang="csharp">using Azure.Identity;
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
+using Microsoft.Graph.Models.ODataErrors;
+
+var clientId = Environment.GetEnvironmentVariable("GRAPH_CLIENT_ID")
+    ?? throw new InvalidOperationException("Set the GRAPH_CLIENT_ID environment variable.");
+var tenantId = Environment.GetEnvironmentVariable("GRAPH_TENANT_ID")
+    ?? throw new InvalidOperationException("Set the GRAPH_TENANT_ID environment variable.");
+string[] scopes = ["User.Read", "User.ReadBasic.All"];
+
+var credential = new DeviceCodeCredential(new DeviceCodeCredentialOptions
+{
+    ClientId = clientId,
+    TenantId = tenantId,
+    DeviceCodeCallback = (info, _) =&gt;
+    {
+        Console.WriteLine(info.Message);
+        return Task.CompletedTask;
+    }
+});
+
+var graphClient = new GraphServiceClient(credential, scopes);</pre>
+
+          <h3>Step 4: Read the Signed-In User</h3>
+          <p>Append this code. <code>$select</code> limits the response to three properties.</p>
+          <span class="code-label">Program.cs (part 2)</span>
+          <pre class="code" data-lang="csharp">// 1. Signed-in user
+var me = await graphClient.Me.GetAsync(config =&gt;
+{
+    config.QueryParameters.Select = ["displayName", "userPrincipalName", "jobTitle"];
+});
+Console.WriteLine($"\nHello, {me?.DisplayName} ({me?.UserPrincipalName})\n");</pre>
+
+          <h3>Step 5: Page Through Users</h3>
+          <p>Append this code. <code>$top=5</code> forces small pages so you can watch <code>PageIterator</code> follow <code>@odata.nextLink</code>. The second callback runs before each additional page request.</p>
+          <span class="code-label">Program.cs (part 3)</span>
+          <pre class="code" data-lang="csharp">// 2. Users in the tenant, 5 per page
+var firstPage = await graphClient.Users.GetAsync(config =&gt;
+{
+    config.QueryParameters.Select = ["displayName", "mail"];
+    config.QueryParameters.Top = 5;
+});
+
+var count = 0;
+var pages = 1;
+var iterator = PageIterator&lt;User, UserCollectionResponse&gt;.CreatePageIterator(
+    graphClient,
+    firstPage!,
+    user =&gt;
+    {
+        count++;
+        Console.WriteLine($"{count,3}. {user.DisplayName} &lt;{user.Mail ?? "no mail"}&gt;");
+        return true;
+    },
+    request =&gt;
+    {
+        pages++;
+        return request;
+    });
+await iterator.IterateAsync();
+Console.WriteLine($"\n{count} users across {pages} page(s)\n");</pre>
+
+          <h3>Step 6: Handle an Error</h3>
+          <p>Append this code. The SDK turns Microsoft Graph error responses into an <code>ODataError</code> exception that carries the status code and the error object.</p>
+          <span class="code-label">Program.cs (part 4)</span>
+          <pre class="code" data-lang="csharp">// 3. Error handling
+try
+{
+    await graphClient.Users["00000000-0000-0000-0000-000000000000"].GetAsync();
+}
+catch (ODataError ex)
+{
+    Console.WriteLine($"HTTP {ex.ResponseStatusCode}: {ex.Error?.Code}");
+    Console.WriteLine($"Message:    {ex.Error?.Message}");
+    Console.WriteLine($"request-id: {ex.Error?.InnerError?.RequestId}");
+}</pre>
+          <details class="solution">
+            <summary>Show the complete Program.cs</summary>
+            <pre class="code" data-lang="csharp">using Azure.Identity;
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
+using Microsoft.Graph.Models.ODataErrors;
+
+var clientId = Environment.GetEnvironmentVariable("GRAPH_CLIENT_ID")
+    ?? throw new InvalidOperationException("Set the GRAPH_CLIENT_ID environment variable.");
+var tenantId = Environment.GetEnvironmentVariable("GRAPH_TENANT_ID")
+    ?? throw new InvalidOperationException("Set the GRAPH_TENANT_ID environment variable.");
+string[] scopes = ["User.Read", "User.ReadBasic.All"];
+
+var credential = new DeviceCodeCredential(new DeviceCodeCredentialOptions
+{
+    ClientId = clientId,
+    TenantId = tenantId,
+    DeviceCodeCallback = (info, _) =&gt;
+    {
+        Console.WriteLine(info.Message);
+        return Task.CompletedTask;
+    }
+});
+
+var graphClient = new GraphServiceClient(credential, scopes);
+
+// 1. Signed-in user
+var me = await graphClient.Me.GetAsync(config =&gt;
+{
+    config.QueryParameters.Select = ["displayName", "userPrincipalName", "jobTitle"];
+});
+Console.WriteLine($"\nHello, {me?.DisplayName} ({me?.UserPrincipalName})\n");
+
+// 2. Users in the tenant, 5 per page
+var firstPage = await graphClient.Users.GetAsync(config =&gt;
+{
+    config.QueryParameters.Select = ["displayName", "mail"];
+    config.QueryParameters.Top = 5;
+});
+
+var count = 0;
+var pages = 1;
+var iterator = PageIterator&lt;User, UserCollectionResponse&gt;.CreatePageIterator(
+    graphClient,
+    firstPage!,
+    user =&gt;
+    {
+        count++;
+        Console.WriteLine($"{count,3}. {user.DisplayName} &lt;{user.Mail ?? "no mail"}&gt;");
+        return true;
+    },
+    request =&gt;
+    {
+        pages++;
+        return request;
+    });
+await iterator.IterateAsync();
+Console.WriteLine($"\n{count} users across {pages} page(s)\n");
+
+// 3. Error handling
+try
+{
+    await graphClient.Users["00000000-0000-0000-0000-000000000000"].GetAsync();
+}
+catch (ODataError ex)
+{
+    Console.WriteLine($"HTTP {ex.ResponseStatusCode}: {ex.Error?.Code}");
+    Console.WriteLine($"Message:    {ex.Error?.Message}");
+    Console.WriteLine($"request-id: {ex.Error?.InnerError?.RequestId}");
+}</pre>
+          </details>
+        </section>
+
+        <section id="test" class="section-card reveal">
+          <h2>Test and Verify</h2>
+          <ol>
+            <li>Run the app:</li>
+          </ol>
+          <span class="code-label">Terminal</span>
+          <pre class="code" data-lang="bash">dotnet run</pre>
+          <ol start="2">
+            <li>Open <code>https://microsoft.com/devicelogin</code>, enter the code the app prints, and sign in with your test-tenant account.</li>
+            <li>Accept the consent prompt for <strong>User.Read</strong> and <strong>User.ReadBasic.All</strong> the first time.</li>
+          </ol>
+          <span class="code-label">Expected output (abridged)</span>
+          <pre class="code" data-lang="text">To sign in, use a web browser to open the page https://microsoft.com/devicelogin and enter the code ABCD1234 to authenticate.
+
+Hello, Megan Bowen (meganb@&lt;your-domain&gt;)
+
+  1. Adele Vance &lt;adelev@&lt;your-domain&gt;&gt;
+  2. Alex Wilber &lt;alexw@&lt;your-domain&gt;&gt;
+  ...
+ 18. Pradeep Gupta &lt;pradeepg@&lt;your-domain&gt;&gt;
+
+18 users across 4 page(s)
+
+HTTP 404: Request_ResourceNotFound
+Message:    Resource '00000000-0000-0000-0000-000000000000' does not exist ...
+request-id: &lt;request-id&gt;</pre>
+          <ul class="checklist">
+            <li>The app greets you by your display name.</li>
+            <li>Users are numbered continuously across more than one page.</li>
+            <li>The page count is about the user count divided by 5.</li>
+            <li>The error block prints <code>404</code>, an error code, and a <code>request-id</code> instead of crashing.</li>
+          </ul>
+        </section>
+
+        <section id="stretch" class="section-card reveal">
+          <h2>Stretch Goals</h2>
+          <ul>
+            <li>Add an advanced query: set <code>config.QueryParameters.Filter = "endsWith(mail,'@&lt;your-domain&gt;')"</code>, <code>config.QueryParameters.Count = true</code>, and <code>config.Headers.Add("ConsistencyLevel", "eventual")</code>. Remember to add the header again in the <code>PageIterator</code> request callback.</li>
+            <li>Remove <code>"User.ReadBasic.All"</code> from <code>scopes</code>, run again, and compare the error from <code>GET /users</code>.</li>
+            <li>Replace <code>DeviceCodeCredential</code> with <code>InteractiveBrowserCredential</code>. You need to add the redirect URI <code>http://localhost</code> under <strong>Mobile and desktop applications</strong> on the app registration.</li>
+          </ul>
+        </section>
+
+        <section id="troubleshoot" class="section-card reveal">
+          <h2>Troubleshooting</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+            <tbody>
+              <tr><td><code>Set the GRAPH_CLIENT_ID environment variable.</code></td><td>Set the variables in the same terminal you run <code>dotnet run</code> from (Step 2).</td></tr>
+              <tr><td><code>AADSTS7000218</code> during sign-in</td><td><strong>Allow public client flows</strong> isn't <strong>Yes</strong> on the user app (Lab 02, Step 3).</td></tr>
+              <tr><td><code>AADSTS700016</code> application not found</td><td><code>GRAPH_CLIENT_ID</code> or <code>GRAPH_TENANT_ID</code> is wrong, or you signed in to a different tenant.</td></tr>
+              <tr><td><code>AADSTS65001</code> consent required</td><td>Your tenant blocks user consent. An admin selects <strong>Grant admin consent</strong> on the user app.</td></tr>
+              <tr><td><code>403 Authorization_RequestDenied</code> on <code>/users</code></td><td><code>User.ReadBasic.All</code> is missing from <code>scopes</code> or wasn't consented.</td></tr>
+              <tr><td>Sign-in blocked by your organization</td><td>Conditional Access can block device code flow. Use a developer tenant, or try the <code>InteractiveBrowserCredential</code> stretch goal.</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="cleanup" class="section-card reveal">
+          <h2>Cleanup and References</h2>
+          <p>Delete the <code>GraphLab04</code> folder when you're done. The app registration is removed in <a href="lab02-register-app-portal.html#cleanup">Lab 02 cleanup</a> at the end of the workshop. Nothing in this lab has a cost.</p>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/tutorials/dotnet" target="_blank" rel="noopener">Build .NET apps with Microsoft Graph</a> &middot; <a href="https://learn.microsoft.com/graph/sdks/paging" target="_blank" rel="noopener">Page through a collection</a> &middot; <a href="https://learn.microsoft.com/graph/sdks/sdk-installation" target="_blank" rel="noopener">Install a Microsoft Graph SDK</a></div>
+        </section>
+
+        <nav class="pager" aria-label="Lab pagination">
+          <a class="prev" href="lab03-powershell.html"><small>Previous</small><strong>&larr; Lab 03: Graph PowerShell</strong></a>
+          <a class="next" href="lab05-python-vscode.html"><small>Next</small><strong>Lab 05: Python &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#scenario">Scenario</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#prerequisites">Prerequisites</a>
+        <a href="#build">Build</a>
+        <a href="#test">Test and Verify</a>
+        <a href="#stretch">Stretch Goals</a>
+        <a href="#troubleshoot">Troubleshooting</a>
+        <a href="#cleanup">Cleanup</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

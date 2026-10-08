@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 02: Register Apps in Microsoft Entra ID &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Register a public client app for delegated access and a confidential daemon app for app-only access in the Microsoft Entra admin center, with least-privilege permissions." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="lab02-register-app">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><a href="index.html">Labs</a><span class="sep">/</span><span>Lab 02</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Lab 02: Register Apps in Microsoft Entra ID</h1>
+      <p class="subtitle">Create the two app registrations the code labs use: a public client that signs users in, and a confidential daemon that runs without a user.</p>
+      <div class="badge-row"><span class="badge">Microsoft Entra admin center</span><span class="badge">Beginner</span><span class="badge">~12 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="scenario" class="section-card reveal">
+          <h2>Scenario and Objectives</h2>
+          <p>Your team is building a console tool that shows the signed-in user's colleagues, and a nightly job that reports on all users. Each needs its own identity with only the access it requires.</p>
+          <ul>
+            <li>Register a single-tenant <strong>public client</strong> for delegated access with device code sign-in.</li>
+            <li>Register a single-tenant <strong>confidential client</strong> for app-only access.</li>
+            <li>Add least-privilege delegated and application permissions, and grant admin consent.</li>
+            <li>Create a short-lived client secret and keep it out of source control.</li>
+          </ul>
+          <div class="callout"><strong>Related topic:</strong> <a href="../topics/auth-permissions.html">Authentication and Permissions</a> &middot; <a href="../topics/security-best-practices.html">Security Best Practices</a></div>
+        </section>
+
+        <section id="architecture" class="section-card reveal">
+          <h2>Architecture</h2>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    subgraph TENANT[Your Microsoft Entra tenant]
+        USERAPP[graph-workshop-user app]
+        DAEMON[graph-workshop-daemon app]
+    end
+    USERAPP -->|delegated| GRAPH[Microsoft Graph]
+    DAEMON -->|application| GRAPH
+    LAB4["Lab 04 C#35; app"] -.->|device code| USERAPP
+    LAB5[Lab 05 Python] -.->|client secret| DAEMON
+    LAB6[Lab 06 Java] -.->|client secret| DAEMON
+    class USERAPP accent
+    class DAEMON azure
+    class GRAPH azure
+    class LAB4,LAB5,LAB6 external
+            </pre>
+          </div>
+          <p class="diagram-caption">Purple acts on behalf of a user with <code>User.Read</code> and <code>User.ReadBasic.All</code>. Blue acts as itself with <code>User.Read.All</code>. Dashed nodes are the labs that use each registration.</p>
+        </section>
+
+        <section id="prerequisites" class="section-card reveal">
+          <h2>Prerequisites and Names</h2>
+          <ul>
+            <li>A <strong>test or developer tenant</strong> in Microsoft Entra ID.</li>
+            <li>An account that can register apps (at least <strong>Application Developer</strong>) and grant admin consent to application permissions (<strong>Privileged Role Administrator</strong> or <strong>Global Administrator</strong>). In a developer sandbox, use the admin account.</li>
+            <li>A short <code>&lt;suffix&gt;</code> to keep names unique, such as your initials.</li>
+            <li>A safe place to keep the values you record, such as a password manager or a local text file outside any Git repository.</li>
+          </ul>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Item</th><th>Suggested name</th><th>Used in</th></tr></thead>
+            <tbody>
+              <tr><td>Public client registration</td><td><code>graph-workshop-user-&lt;suffix&gt;</code></td><td>Lab 04</td></tr>
+              <tr><td>Confidential client registration</td><td><code>graph-workshop-daemon-&lt;suffix&gt;</code></td><td>Lab 05, Lab 06, Lab 03 stretch goal</td></tr>
+              <tr><td>Client secret description</td><td><code>workshop-&lt;date&gt;</code></td><td>Lab 05, Lab 06</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="build" class="section-card reveal">
+          <h2>Build</h2>
+
+          <h3>Step 1: Open App Registrations</h3>
+          <ol>
+            <li>Sign in to the <a href="https://entra.microsoft.com" target="_blank" rel="noopener">Microsoft Entra admin center</a> with your test-tenant admin account.</li>
+            <li>If you have access to several tenants, use the <strong>Settings</strong> icon in the top menu to switch to your test tenant.</li>
+            <li>Browse to <strong>Entra ID</strong> &gt; <strong>App registrations</strong>.</li>
+          </ol>
+
+          <h3>Step 2: Register the Public Client</h3>
+          <ol>
+            <li>Select <strong>New registration</strong>.</li>
+            <li>Enter the <strong>Name</strong> <code>graph-workshop-user-&lt;suffix&gt;</code>.</li>
+            <li>Under <strong>Supported account types</strong>, select the single-tenant option, <strong>Single tenant only - &lt;your tenant&gt;</strong>.</li>
+            <li>Leave <strong>Redirect URI</strong> empty and select <strong>Register</strong>.</li>
+            <li>On the <strong>Overview</strong> page, record the <strong>Application (client) ID</strong> and the <strong>Directory (tenant) ID</strong>.</li>
+          </ol>
+          <div class="callout"><strong>Note:</strong> Some tenants still show the older label <strong>Accounts in this organizational directory only</strong> for the single-tenant option.</div>
+
+          <h3>Step 3: Allow Device Code Sign-In</h3>
+          <ol>
+            <li>Under <strong>Manage</strong>, select <strong>Authentication</strong>.</li>
+            <li>Find <strong>Allow public client flows</strong> (under <strong>Advanced settings</strong>) and set it to <strong>Yes</strong>.</li>
+            <li>Select <strong>Save</strong>.</li>
+          </ol>
+          <div class="callout"><strong>Note:</strong> Device code flow is a public client flow, so this setting is required for Lab 04. Leave it off for apps that don't need it.</div>
+
+          <h3>Step 4: Add Delegated Permissions</h3>
+          <ol>
+            <li>Under <strong>Manage</strong>, select <strong>API permissions</strong>. <code>User.Read</code> is already listed.</li>
+            <li>Select <strong>Add a permission</strong> &gt; <strong>Microsoft Graph</strong> &gt; <strong>Delegated permissions</strong>.</li>
+            <li>Search for and select <code>User.ReadBasic.All</code>, then select <strong>Add permissions</strong>.</li>
+          </ol>
+          <p><strong>Expected result:</strong> <strong>Configured permissions</strong> lists <code>User.Read</code> and <code>User.ReadBasic.All</code>, both of type <strong>Delegated</strong>. Users can consent to both themselves, so admin consent is optional here.</p>
+
+          <h3>Step 5: Register the Confidential Client</h3>
+          <ol>
+            <li>Return to <strong>App registrations</strong> and select <strong>New registration</strong>.</li>
+            <li>Enter the <strong>Name</strong> <code>graph-workshop-daemon-&lt;suffix&gt;</code>, choose the single-tenant option, leave <strong>Redirect URI</strong> empty, and select <strong>Register</strong>.</li>
+            <li>Record this app's <strong>Application (client) ID</strong>. The tenant ID is the same as before.</li>
+          </ol>
+
+          <h3>Step 6: Add an Application Permission and Grant Admin Consent</h3>
+          <ol>
+            <li>Select <strong>API permissions</strong>. In the <code>User.Read</code> row, select the ellipsis (<strong>...</strong>) &gt; <strong>Remove permission</strong> &gt; <strong>Yes, remove</strong>. The daemon never signs a user in, so it doesn't need it.</li>
+            <li>Select <strong>Add a permission</strong> &gt; <strong>Microsoft Graph</strong> &gt; <strong>Application permissions</strong>.</li>
+            <li>Search for and select <code>User.Read.All</code>, then select <strong>Add permissions</strong>.</li>
+            <li>Select <strong>Grant admin consent for &lt;your tenant&gt;</strong>, then <strong>Yes</strong>.</li>
+          </ol>
+          <p><strong>Expected result:</strong> The <code>User.Read.All</code> row shows type <strong>Application</strong> and status <strong>Granted for &lt;your tenant&gt;</strong>.</p>
+
+          <h3>Step 7: Create a Client Secret</h3>
+          <ol>
+            <li>Under <strong>Manage</strong>, select <strong>Certificates &amp; secrets</strong> &gt; <strong>Client secrets</strong> &gt; <strong>New client secret</strong>.</li>
+            <li>Enter the description <code>workshop-&lt;date&gt;</code> and choose the shortest expiration that covers the workshop, or set a custom one.</li>
+            <li>Select <strong>Add</strong>.</li>
+            <li>Copy the secret <strong>Value</strong> immediately and store it safely. It's never shown again after you leave the page.</li>
+          </ol>
+          <div class="callout warning"><strong>Important:</strong> Copy the <strong>Value</strong>, not the <strong>Secret ID</strong>. Never paste the secret into source code, a config file in a repository, chat, or a ticket. You read it from an environment variable in Labs 05 and 06.</div>
+          <div class="callout"><strong>Note:</strong> Client secrets are for development and workshops. Production daemons should use a certificate, a federated credential, or a managed identity. See <a href="../topics/security-best-practices.html#credentials">Protect App Credentials</a>.</div>
+        </section>
+
+        <section id="test" class="section-card reveal">
+          <h2>Test and Verify</h2>
+          <p>On <strong>App registrations</strong> &gt; <strong>All applications</strong>, search for <code>graph-workshop</code> and check each app.</p>
+          <ul class="checklist">
+            <li>Both registrations exist and are single tenant.</li>
+            <li><code>graph-workshop-user-&lt;suffix&gt;</code> has <strong>Allow public client flows</strong> set to <strong>Yes</strong> and two delegated permissions.</li>
+            <li><code>graph-workshop-daemon-&lt;suffix&gt;</code> has only <code>User.Read.All</code> (Application), with status <strong>Granted</strong>.</li>
+            <li>The daemon has one client secret with an expiration date.</li>
+            <li>You recorded: tenant ID, user app client ID, daemon client ID, and daemon secret value.</li>
+          </ul>
+        </section>
+
+        <section id="troubleshoot" class="section-card reveal">
+          <h2>Troubleshooting</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Grant admin consent</strong> is unavailable</td><td>Your account lacks the role. Sign in as a Privileged Role Administrator or Global Administrator.</td></tr>
+              <tr><td>Status shows <strong>Not granted</strong> after consent</td><td>Select <strong>Refresh</strong>. Changes can take a moment to appear.</td></tr>
+              <tr><td>You lost the secret value</td><td>Create a new client secret, then delete the old one. Values can't be retrieved later.</td></tr>
+              <tr><td>Later labs fail with <code>AADSTS7000215</code> (invalid client secret)</td><td>You copied the <strong>Secret ID</strong> instead of the <strong>Value</strong>. <code>AADSTS7000222</code> means the secret expired: create a new one.</td></tr>
+              <tr><td>Lab 04 fails with <code>AADSTS7000218</code></td><td><strong>Allow public client flows</strong> isn't set to <strong>Yes</strong> on the user app (Step 3).</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="cleanup" class="section-card reveal">
+          <h2>Cleanup and References</h2>
+          <p>Keep both registrations until you finish the code labs (Labs 04 to 06). App registrations have no cost, but an unused app with a valid secret and consented application permissions is a security risk. When you finish the workshop:</p>
+          <ol>
+            <li>In <strong>App registrations</strong>, open <code>graph-workshop-daemon-&lt;suffix&gt;</code> and select <strong>Delete</strong>, then confirm.</li>
+            <li>Repeat for <code>graph-workshop-user-&lt;suffix&gt;</code>.</li>
+            <li>Delete any local copy of the client secret.</li>
+          </ol>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/entra/identity-platform/quickstart-register-app" target="_blank" rel="noopener">Register an app in Microsoft Entra ID</a> &middot; <a href="https://learn.microsoft.com/entra/identity-platform/quickstart-configure-app-access-web-apis" target="_blank" rel="noopener">Configure API permissions and admin consent</a> &middot; <a href="https://learn.microsoft.com/entra/identity-platform/how-to-add-credentials" target="_blank" rel="noopener">Add and manage app credentials</a></div>
+        </section>
+
+        <nav class="pager" aria-label="Lab pagination">
+          <a class="prev" href="lab01-graph-explorer.html"><small>Previous</small><strong>&larr; Lab 01: Graph Explorer</strong></a>
+          <a class="next" href="lab03-powershell.html"><small>Next</small><strong>Lab 03: Graph PowerShell &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#scenario">Scenario</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#prerequisites">Prerequisites</a>
+        <a href="#build">Build</a>
+        <a href="#test">Test and Verify</a>
+        <a href="#troubleshoot">Troubleshooting</a>
+        <a href="#cleanup">Cleanup</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

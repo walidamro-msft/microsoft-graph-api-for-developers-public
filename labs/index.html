@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hands-on Labs &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Six guided Microsoft Graph labs: Graph Explorer, app registration in Microsoft Entra ID, Graph PowerShell, a C# console app, and app-only daemons in Python and Java." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="labs">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Labs</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Hands-on Labs</h1>
+      <p class="subtitle">Call Microsoft Graph from the browser, the Microsoft Entra admin center, PowerShell, C#, Python, and Java.</p>
+      <div class="badge-row"><span class="badge">6 guided labs</span><span class="badge">Browser, portal, and VS Code</span><span class="badge">~85 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="choose" class="section-card reveal">
+          <h2>Choose Your Path</h2>
+          <p>Do Lab 01 and Lab 02 first: Lab 02 creates the app registrations that Labs 04 to 06 use. After that, pick the labs that match your role and language.</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    L1[Lab 01 Graph Explorer] --> L2[Lab 02 Register apps]
+    L2 --> L3[Lab 03 PowerShell]
+    L2 --> L4["Lab 04 C#35;"]
+    L2 --> L5[Lab 05 Python]
+    L2 --> L6[Lab 06 Java]
+    class L1 success
+    class L2 accent
+    class L3,L4,L5,L6 azure
+            </pre>
+          </div>
+          <p class="diagram-caption">Labs 03 to 06 are independent of each other. Entra ID admins usually choose Lab 03; developers choose the lab for their language.</p>
+          <div class="callout warning"><strong>Before you begin:</strong> use a test or developer tenant, not production. Some steps create groups, app registrations, and a client secret, and need admin consent.</div>
+        </section>
+
+        <section id="catalog" class="section-card reveal">
+          <h2>Lab Catalog</h2>
+          <div class="cheat">
+            <div class="cheat-item tone-green">
+              <h3><a href="lab01-graph-explorer.html">Lab 01: Explore Microsoft Graph with Graph Explorer</a></h3>
+              <p>Run queries, use <code>$select</code>, <code>$filter</code>, and advanced queries, consent to a permission, and read an error.</p>
+              <p><strong>Tool:</strong> Browser &middot; <strong>Time:</strong> ~10 min</p>
+            </div>
+            <div class="cheat-item tone-purple">
+              <h3><a href="lab02-register-app-portal.html">Lab 02: Register Apps in Microsoft Entra ID</a></h3>
+              <p>Create a public client for delegated access and a confidential daemon for app-only access, with admin consent and a client secret.</p>
+              <p><strong>Tool:</strong> Microsoft Entra admin center &middot; <strong>Time:</strong> ~12 min</p>
+            </div>
+            <div class="cheat-item tone-blue">
+              <h3><a href="lab03-powershell.html">Lab 03: Manage Users and Groups with Microsoft Graph PowerShell</a></h3>
+              <p>Connect with scopes, discover cmdlets and permissions, run an advanced query, and create a security group.</p>
+              <p><strong>Tool:</strong> VS Code, PowerShell 7 &middot; <strong>Time:</strong> ~15 min</p>
+            </div>
+            <div class="cheat-item tone-green">
+              <h3><a href="lab04-dotnet-vscode.html">Lab 04: Build a C# Console App with the Graph .NET SDK</a></h3>
+              <p>Device code sign-in, <code>GET /me</code>, paging with <code>PageIterator</code>, and <code>ODataError</code> handling.</p>
+              <p><strong>Tool:</strong> VS Code, .NET 8+ &middot; <strong>Time:</strong> ~15 min</p>
+            </div>
+            <div class="cheat-item tone-orange">
+              <h3><a href="lab05-python-vscode.html">Lab 05: Call Microsoft Graph App-Only from Python</a></h3>
+              <p>An async Python daemon that authenticates with client credentials, pages through every user, and handles errors.</p>
+              <p><strong>Tool:</strong> VS Code, Python 3.10+ &middot; <strong>Time:</strong> ~15 min</p>
+            </div>
+            <div class="cheat-item tone-red">
+              <h3><a href="lab06-java-vscode.html">Lab 06: Call Microsoft Graph App-Only from Java</a></h3>
+              <p>The same daemon in Java with Maven, using <code>PageIterator</code> to follow every page.</p>
+              <p><strong>Tool:</strong> VS Code, JDK 11+ and Maven &middot; <strong>Time:</strong> ~15 min</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="prerequisites" class="section-card reveal">
+          <h2>Common Prerequisites</h2>
+          <ul>
+            <li>A <strong>Microsoft Entra test or developer tenant</strong> where you can register apps and grant admin consent (<strong>Privileged Role Administrator</strong> or <strong>Global Administrator</strong>). If you qualify, a <a href="https://learn.microsoft.com/office/developer-program/microsoft-365-developer-program-faq" target="_blank" rel="noopener">Microsoft 365 Developer Program</a> E5 sandbox includes sample users and data.</li>
+            <li>No Azure subscription is needed. The labs use only standard Microsoft Graph APIs.</li>
+            <li>Visual Studio Code, plus the tools for the labs you choose: PowerShell 7, the .NET 8 SDK or later, Python 3.10 or later, or JDK 11 or later with Maven.</li>
+            <li>A short <code>&lt;suffix&gt;</code>, such as your initials, to keep names unique.</li>
+          </ul>
+          <div class="takeaway"><h3>Security</h3><p>Use least-privilege permissions, keep client IDs and secrets in environment variables, and never commit secrets. Delete the lab app registrations when you finish.</p></div>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="../topics/resources.html"><small>Previous</small><strong>&larr; Summary and Resources</strong></a>
+          <a class="next" href="lab01-graph-explorer.html"><small>Start the labs</small><strong>Lab 01: Graph Explorer &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#choose">Choose Your Path</a>
+        <a href="#catalog">Lab Catalog</a>
+        <a href="#prerequisites">Common Prerequisites</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

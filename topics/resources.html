@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Summary and Resources &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="Key takeaways from every module and the Microsoft Graph resources to keep: Dev Center, Graph Explorer, SDK docs, Learn training, and app registration guides." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="resources">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Topics</span><span class="sep">/</span><span>Summary and Resources</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Summary and Resources</h1>
+      <p class="subtitle">What to remember from each module, and where to go next when you build your own Microsoft Graph integration.</p>
+      <div class="badge-row"><span class="badge">Wrap-up</span><span class="badge">Reference</span><span class="badge">~3 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="summary" class="section-card reveal">
+          <h2>Key Takeaways</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Module</th><th>Remember</th></tr></thead>
+            <tbody>
+              <tr><td><a href="overview.html">What Is Microsoft Graph</a></td><td>One endpoint, one token, one request model for Microsoft 365 and Microsoft Entra data, for apps and AI agents alike.</td></tr>
+              <tr><td><a href="setup-environment.html">Set Up Your Environment</a></td><td>A test tenant and the right roles matter more than an Azure subscription.</td></tr>
+              <tr><td><a href="auth-permissions.html">Authentication and Permissions</a></td><td>Delegated when a user is present, application when not; application permissions always need an admin.</td></tr>
+              <tr><td><a href="graph-explorer.html">Graph Explorer</a></td><td>Learn, prototype, and find permissions in the browser; move to code for anything repeatable.</td></tr>
+              <tr><td><a href="making-requests.html">Making Requests</a></td><td>Use v1.0, <code>$filter</code> and <code>$select</code> on the server, and follow <code>@odata.nextLink</code>.</td></tr>
+              <tr><td><a href="errors-throttling.html">Errors and Throttling</a></td><td>Branch on <code>error.code</code>, honor <code>Retry-After</code>, remember tenant limits are shared, and use activity logs to see who calls Graph.</td></tr>
+              <tr><td><a href="sdks.html">Microsoft Graph SDKs</a></td><td>An SDK plus an Azure Identity credential gives you typed models, retries, and paging.</td></tr>
+              <tr><td><a href="security-best-practices.html">Security Best Practices</a></td><td>Smallest permissions, strongest credential, reviewed consent.</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="resources" class="section-card reveal">
+          <h2>Microsoft Graph Resources</h2>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3><a href="https://aka.ms/graph" target="_blank" rel="noopener">Microsoft Graph Dev Center</a></h3><p><code>aka.ms/graph</code>: the product home, with quick starts, connectors, Data Connect, and news.</p></div>
+            <div class="cheat-item tone-green"><h3><a href="https://aka.ms/ge" target="_blank" rel="noopener">Microsoft Graph Explorer</a></h3><p><code>aka.ms/ge</code>: try any request in the browser, find permissions, and copy SDK code.</p></div>
+            <div class="cheat-item tone-purple"><h3><a href="https://learn.microsoft.com/graph/sdks/sdks-overview" target="_blank" rel="noopener">Microsoft Graph SDKs</a></h3><p>Overview of the .NET, PowerShell, Python, Java, and other SDKs, with install and client setup guides.</p></div>
+            <div class="cheat-item tone-orange"><h3><a href="https://learn.microsoft.com/training/paths/m365-msgraph-fundamentals/" target="_blank" rel="noopener">Microsoft Graph Fundamentals</a></h3><p>Microsoft Learn learning path with hands-on exercises.</p></div>
+            <div class="cheat-item tone-teal"><h3><a href="https://learn.microsoft.com/entra/identity-platform/quickstart-register-app" target="_blank" rel="noopener">Register an app in Microsoft Entra ID</a></h3><p>App registration, supported account types, and credentials.</p></div>
+          </div>
+        </section>
+
+        <section id="go-further" class="section-card reveal">
+          <h2>Go Further</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>When you need to</th><th>Go to</th></tr></thead>
+            <tbody>
+              <tr><td>Find the permission an API needs</td><td><a href="https://learn.microsoft.com/graph/permissions-reference" target="_blank" rel="noopener">Microsoft Graph permissions reference</a></td></tr>
+              <tr><td>Build a complete sample app in your language</td><td><a href="https://learn.microsoft.com/graph/tutorials" target="_blank" rel="noopener">Microsoft Graph tutorials</a> &middot; <a href="https://developer.microsoft.com/graph/quick-start" target="_blank" rel="noopener">Quick start</a></td></tr>
+              <tr><td>Script Microsoft Entra ID</td><td><a href="https://learn.microsoft.com/powershell/microsoftgraph/overview" target="_blank" rel="noopener">Microsoft Graph PowerShell</a></td></tr>
+              <tr><td>React to changes instead of polling</td><td><a href="https://learn.microsoft.com/graph/delta-query-overview" target="_blank" rel="noopener">Delta query</a> &middot; <a href="https://learn.microsoft.com/graph/change-notifications-overview" target="_blank" rel="noopener">Change notifications</a></td></tr>
+              <tr><td>Stay within limits</td><td><a href="https://learn.microsoft.com/graph/throttling" target="_blank" rel="noopener">Throttling guidance</a></td></tr>
+              <tr><td>Get a developer sandbox</td><td><a href="https://learn.microsoft.com/office/developer-program/microsoft-365-developer-program-faq" target="_blank" rel="noopener">Microsoft 365 Developer Program FAQ</a></td></tr>
+              <tr><td>Start with the basics module</td><td><a href="https://learn.microsoft.com/training/modules/msgraph-intro-overview/" target="_blank" rel="noopener">What is Microsoft Graph? (training module)</a></td></tr>
+            </tbody>
+          </table></div>
+          <div class="takeaway">
+            <h3>Key takeaway</h3>
+            <p>Bookmark <code>aka.ms/graph</code> and <code>aka.ms/ge</code>. Most Microsoft Graph work starts with a query in Graph Explorer and a check of the permissions reference.</p>
+          </div>
+          <ul>
+            <li>Now apply everything in the <a href="../labs/index.html">Hands-on Labs</a>.</li>
+          </ul>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="security-best-practices.html"><small>Previous</small><strong>&larr; Security Best Practices</strong></a>
+          <a class="next" href="../labs/index.html"><small>Next</small><strong>Labs Overview &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#summary">Key Takeaways</a>
+        <a href="#resources">Microsoft Graph Resources</a>
+        <a href="#go-further">Go Further</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

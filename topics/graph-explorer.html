@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graph Explorer &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="What Graph Explorer is, when to use it and when not to, a tour of its features, and how to read a sample query and response before you write code." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="graph-explorer">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Topics</span><span class="sep">/</span><span>Graph Explorer</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Graph Explorer</h1>
+      <p class="subtitle">Try any Microsoft Graph request in your browser, find the permission it needs, and copy the SDK code, before you write a line of your own.</p>
+      <div class="badge-row"><span class="badge">aka.ms/ge</span><span class="badge">Tool</span><span class="badge">~7 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="what-is" class="section-card reveal">
+          <h2>What Is Graph Explorer?</h2>
+          <div class="quote-card">
+            <p>Graph Explorer is a web-based tool that you can use to build and test requests using Microsoft Graph APIs.</p>
+            <cite>Source: Use the Microsoft Graph API, Microsoft Learn</cite>
+          </div>
+          <p>Open it at <a href="https://aka.ms/ge" target="_blank" rel="noopener">aka.ms/ge</a>. Nothing to install: you pick a method and a version, type a URL, and select <strong>Run query</strong>. The response, its headers, and the equivalent SDK code appear underneath.</p>
+          <div class="cheat">
+            <div class="cheat-item tone-gray"><h3>Signed out</h3><p>Queries run against a <strong>sample tenant</strong> with demo data. Read-only, safe, and good for learning the shape of an API.</p></div>
+            <div class="cheat-item tone-blue"><h3>Signed in</h3><p>Queries run against <strong>your tenant</strong> as you, with the permissions you consent to. Required for <code>POST</code>, <code>PATCH</code>, <code>PUT</code>, and <code>DELETE</code>.</p></div>
+          </div>
+          <div class="callout warning"><strong>Important:</strong> Signed in, write requests change real data in that tenant. Sign in to a developer or test tenant, not production.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/graph-explorer/graph-explorer-overview" target="_blank" rel="noopener">Use Graph Explorer to try Microsoft Graph APIs</a></div>
+        </section>
+
+        <section id="when-to-use" class="section-card reveal">
+          <h2>When to Use It</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Task</th><th>Graph Explorer</th><th>Better choice</th></tr></thead>
+            <tbody>
+              <tr><td>Learn what an API returns and which properties exist</td><td><span class="rating rating-best">Best</span></td><td>&mdash;</td></tr>
+              <tr><td>Find the least-privileged permission for a request</td><td><span class="rating rating-best">Best</span></td><td>&mdash;</td></tr>
+              <tr><td>Prototype a query with <code>$filter</code>, <code>$select</code>, headers</td><td><span class="rating rating-best">Best</span></td><td>&mdash;</td></tr>
+              <tr><td>Get starter SDK code for a request</td><td><span class="rating rating-good">Good</span></td><td>API reference pages</td></tr>
+              <tr><td>Reproduce a bug and capture <code>request-id</code></td><td><span class="rating rating-good">Good</span></td><td>&mdash;</td></tr>
+              <tr><td>Share a working query with a colleague</td><td><span class="rating rating-good">Good</span></td><td>&mdash;</td></tr>
+              <tr><td>Test app-only (application permission) access</td><td><span class="rating rating-no">No</span></td><td>Code or PowerShell with a daemon app (<a href="../labs/lab05-python-vscode.html">Lab 05</a>, <a href="../labs/lab06-java-vscode.html">Lab 06</a>)</td></tr>
+              <tr><td>Repeatable admin tasks or bulk changes</td><td><span class="rating rating-weak">Avoid</span></td><td>Microsoft Graph PowerShell (<a href="../labs/lab03-powershell.html">Lab 03</a>)</td></tr>
+              <tr><td>Anything in production</td><td><span class="rating rating-no">No</span></td><td>An app with its own registration and least-privilege permissions</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>Note:</strong> Graph Explorer always calls Microsoft Graph as the signed-in user, with delegated permissions. What you see is limited by both the permissions you consented to and your own access.</div>
+        </section>
+
+        <section id="tour" class="section-card reveal">
+          <h2>A Tour of the Interface</h2>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>Left pane</h3><ul><li><strong>Sample queries</strong>: ready-made requests grouped by service.</li><li><strong>Resources</strong>: browse v1.0 and beta resources; export a Postman collection.</li><li><strong>History</strong>: queries from the last 30 days; export as <code>.har</code>.</li></ul></div>
+            <div class="cheat-item tone-green"><h3>Query area</h3><ul><li>HTTP method and API version dropdowns.</li><li>Query box for the URL.</li><li><strong>Request body</strong> and <strong>Request headers</strong>.</li><li><strong>Modify permissions</strong> and <strong>Access token</strong>.</li></ul></div>
+            <div class="cheat-item tone-purple"><h3>Response area</h3><ul><li><strong>Response preview</strong> and <strong>Response headers</strong>.</li><li><strong>Code snippets</strong> for the SDKs.</li><li><strong>Toolkit component</strong> and <strong>Adaptive cards</strong> when available.</li></ul></div>
+            <div class="cheat-item tone-gray"><h3>Header</h3><ul><li><strong>Tenant</strong> you're using.</li><li><strong>Settings</strong>: theme, and a link to get an instant sandbox with sample data.</li><li>Profile avatar: sign in, <strong>Consent to permissions</strong>, sign out.</li><li><strong>Share</strong> (next to <strong>Run query</strong>) copies a link to the query.</li></ul></div>
+          </div>
+          <div class="callout"><strong>Note:</strong> <strong>Modify permissions</strong> is in preview, and some queries might not list every permission. When in doubt, check the <strong>Permissions</strong> table on the API reference page.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/graph-explorer/graph-explorer-features" target="_blank" rel="noopener">Work with Graph Explorer</a></div>
+        </section>
+
+        <section id="workflow" class="section-card reveal">
+          <h2>From Query to Code</h2>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    PICK[Pick a sample query] --> RUN[Run query]
+    RUN --> OK{200 OK?}
+    OK -->|403| PERM[Modify permissions]
+    PERM --> RUN
+    OK -->|Yes| SHAPE[Add $select, $filter]
+    SHAPE --> SNIP[Copy code snippet]
+    SNIP --> APP([Your app])
+    class PICK,RUN azure
+    class OK neutral
+    class PERM warning
+    class SHAPE data
+    class SNIP success
+    class APP external
+            </pre>
+          </div>
+          <p class="diagram-caption">Iterate in the browser until the response is exactly what your app needs, then move the request into code.</p>
+          <ol>
+            <li><strong>Start from a sample.</strong> It gives you a correct URL for the service.</li>
+            <li><strong>Fix permissions once.</strong> A <code>403</code> sends you to <strong>Modify permissions</strong>; pick the least-privileged option and note it for your app registration.</li>
+            <li><strong>Shape the response.</strong> Add <code>$select</code> and <code>$filter</code> until it returns only what you need.</li>
+            <li><strong>Copy the snippet.</strong> The <strong>Code snippets</strong> tab shows the same request in SDK code, for example C#, Java, JavaScript, Go, and PowerShell.</li>
+          </ol>
+        </section>
+
+        <section id="read-response" class="section-card reveal">
+          <h2>Read a Sample Query and Response</h2>
+          <span class="code-label">Request</span>
+          <pre class="code" data-lang="http">GET https://graph.microsoft.com/v1.0/users?$select=displayName,mail&amp;$top=2</pre>
+          <span class="code-label">Response preview (shortened)</span>
+          <pre class="code" data-lang="json">{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users(displayName,mail)",
+  "@odata.nextLink": "https://graph.microsoft.com/v1.0/users?$select=displayName,mail&amp;$top=2&amp;$skiptoken=...",
+  "value": [
+    { "displayName": "Adele Vance", "mail": "AdeleV@contoso.com" },
+    { "displayName": "Alex Wilber", "mail": "AlexW@contoso.com" }
+  ]
+}</pre>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Part</th><th>What it tells you</th></tr></thead>
+            <tbody>
+              <tr><td>Status code (above the preview)</td><td><code>200</code> succeeded; anything else has an <code>error</code> object instead of data.</td></tr>
+              <tr><td><code>@odata.context</code></td><td>The resource type and the properties you selected.</td></tr>
+              <tr><td><code>value</code></td><td>The collection. Single resources, such as <code>/me</code>, return the object directly.</td></tr>
+              <tr><td><code>@odata.nextLink</code></td><td>More pages exist. Your code must follow this URL.</td></tr>
+              <tr><td><strong>Response headers</strong> &gt; <code>request-id</code></td><td>The ID to log and to give Microsoft support.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/use-the-api" target="_blank" rel="noopener">Use the Microsoft Graph API</a> &middot; <a href="https://learn.microsoft.com/graph/paging" target="_blank" rel="noopener">Paging</a></div>
+        </section>
+
+        <section id="safety" class="section-card reveal">
+          <h2>Use It Safely</h2>
+          <div class="cheat">
+            <div class="cheat-item tone-red"><h3>Protect the access token</h3><p>The <strong>Access token</strong> tab shows a live token for your account. Don't paste it into chat, tickets, or shared tools.</p></div>
+            <div class="cheat-item tone-orange"><h3>Consent is recorded</h3><p>Consenting adds Graph Explorer as an enterprise application in your tenant with the permissions you granted. Admins can review or revoke them under <strong>Entra ID</strong> &gt; <strong>Enterprise apps</strong>.</p></div>
+            <div class="cheat-item tone-green"><h3>Least privilege still applies</h3><p>Consent only to what the current query needs. Avoid <code>Directory.*</code> permissions for exploration.</p></div>
+          </div>
+          <div class="takeaway">
+            <h3>Key takeaway</h3>
+            <p>Use Graph Explorer to learn, prototype, and find permissions, using your own delegated access in a test tenant. Move to code or PowerShell for anything repeatable, app-only, or in production.</p>
+          </div>
+          <ul>
+            <li>Practice in <a href="../labs/lab01-graph-explorer.html">Lab 01: Explore Microsoft Graph with Graph Explorer</a>.</li>
+          </ul>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="auth-permissions.html"><small>Previous</small><strong>&larr; Authentication and Permissions</strong></a>
+          <a class="next" href="making-requests.html"><small>Next</small><strong>Making Requests &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#what-is">What Is Graph Explorer?</a>
+        <a href="#when-to-use">When to Use It</a>
+        <a href="#tour">Tour of the Interface</a>
+        <a href="#workflow">From Query to Code</a>
+        <a href="#read-response">Read a Response</a>
+        <a href="#safety">Use It Safely</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Set Up Your Environment &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="What you need before you call Microsoft Graph: a Microsoft Entra tenant, the right admin roles, REST and OAuth basics, and the tools for each language." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="setup-environment">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Topics</span><span class="sep">/</span><span>Set Up Your Environment</span>
+    </nav>
+
+    <header class="hero">
+      <h1>Set Up Your Environment</h1>
+      <p class="subtitle">The tenant, roles, skills, and tools you need before your first Microsoft Graph call, and what you don't need.</p>
+      <div class="badge-row"><span class="badge">Prerequisites</span><span class="badge">Concepts</span><span class="badge">~5 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="what-you-need" class="section-card reveal">
+          <h2>What You Need</h2>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    subgraph DEV[Your machine]
+        TOOLS[Editor and SDK]
+        BROWSER[Browser]
+    end
+    subgraph TENANT[Microsoft Entra tenant]
+        APPREG[App registrations]
+        USERS[Users and licenses]
+    end
+    DEV -->|sign in, get token| TENANT
+    DEV -->|HTTPS + token| GRAPH[graph.microsoft.com]
+    GRAPH --> USERS
+    class TOOLS,BROWSER external
+    class APPREG accent
+    class USERS data
+    class GRAPH azure
+            </pre>
+          </div>
+          <p class="diagram-caption">Your code runs anywhere. The identity and the data live in a Microsoft Entra tenant.</p>
+          <div class="cheat">
+            <div class="cheat-item tone-purple"><h3>A Microsoft Entra tenant</h3><p>Every Microsoft Graph call is made against a tenant. Use a <strong>test or developer tenant</strong>, never production, while you learn.</p></div>
+            <div class="cheat-item tone-blue"><h3>The right roles</h3><p>Rights to register apps and, for app-only access, an admin who can consent to application permissions.</p></div>
+            <div class="cheat-item tone-green"><h3>Tools for your language</h3><p>A browser for Graph Explorer, an editor, and the SDK for the language you build in.</p></div>
+          </div>
+        </section>
+
+        <section id="tenant" class="section-card reveal">
+          <h2>Get a Test Tenant</h2>
+          <p>A tenant with sample users, mail, and files makes every API return something interesting. The Microsoft 365 Developer Program provides a free <strong>Microsoft 365 E5 developer sandbox</strong> to eligible members.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Option</th><th>What you get</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Microsoft 365 Developer Program sandbox</strong></td><td>25 user licenses (including the admin), Teams, SharePoint, Outlook, and pre-installed sample data</td><td>Available to Visual Studio Professional or Enterprise subscribers, qualifying partners, and Premier or Unified Support customers. Microsoft employees aren't eligible.</td></tr>
+              <tr><td><strong>Existing test tenant</strong></td><td>Whatever your organization provides</td><td>Ask for an admin role in the test tenant, not production.</td></tr>
+              <tr><td><strong>Graph Explorer sample tenant</strong></td><td>Read-only demo data, no sign-in</td><td>Good for exploring; you can't register apps or write data.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/office/developer-program/microsoft-365-developer-program-faq" target="_blank" rel="noopener">Microsoft 365 Developer Program FAQ</a></div>
+        </section>
+
+        <section id="azure-subscription" class="section-card reveal">
+          <h2>Do You Need an Azure Subscription?</h2>
+          <p>No, not for the standard Microsoft Graph APIs used in this workshop. They're included with your users' Microsoft 365 and Microsoft Entra licenses. You need an Azure subscription only when your app calls <strong>metered</strong> APIs, or when you host your app in Azure.</p>
+          <div class="callout"><strong>Note:</strong> Microsoft 365 data such as mail, calendars, and OneDrive files exists only for users who have the matching license. Directory data such as users, groups, and app registrations is available in any Microsoft Entra tenant.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/metered-api-overview" target="_blank" rel="noopener">Overview of metered APIs and services</a></div>
+        </section>
+
+        <section id="roles" class="section-card reveal">
+          <h2>Roles You Need</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Task</th><th>Least-privileged Microsoft Entra role</th></tr></thead>
+            <tbody>
+              <tr><td>Register an app</td><td><strong>Application Developer</strong></td></tr>
+              <tr><td>Add API permissions to an app</td><td><strong>Cloud Application Administrator</strong></td></tr>
+              <tr><td>Grant admin consent to <em>application</em> permissions for Microsoft Graph</td><td><strong>Privileged Role Administrator</strong> (or Global Administrator)</td></tr>
+              <tr><td>Consent to low-impact <em>delegated</em> permissions for yourself</td><td>None, if your tenant's consent policy allows it</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/entra/identity-platform/quickstart-register-app" target="_blank" rel="noopener">Register an app</a> &middot; <a href="https://learn.microsoft.com/entra/identity-platform/quickstart-configure-app-access-web-apis" target="_blank" rel="noopener">Configure API permissions</a> &middot; <a href="https://learn.microsoft.com/graph/permissions-overview" target="_blank" rel="noopener">Permissions overview</a></div>
+        </section>
+
+        <section id="skills" class="section-card reveal">
+          <h2>Skills That Help</h2>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>REST and HTTP</h3><p>Methods (<code>GET</code>, <code>POST</code>, <code>PATCH</code>, <code>DELETE</code>), URLs with query strings, headers, JSON bodies, and status codes. Microsoft Graph is a REST API.</p></div>
+            <div class="cheat-item tone-purple"><h3>OAuth 2.0 basics</h3><p>The Microsoft identity platform issues access tokens using OAuth 2.0. You need to know the difference between a user signing in and an app signing in as itself.</p></div>
+          </div>
+          <p>Both are covered in this workshop: OAuth in <a href="auth-permissions.html">Authentication and Permissions</a>, REST in <a href="making-requests.html">Making Requests</a>.</p>
+        </section>
+
+        <section id="tools" class="section-card reveal">
+          <h2>Tools by Language</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>You build with</th><th>Install</th><th>Used in</th></tr></thead>
+            <tbody>
+              <tr><td><strong>No code</strong></td><td>A modern browser for <a href="graph-explorer.html">Graph Explorer</a></td><td>Lab 01</td></tr>
+              <tr><td><strong>Microsoft Entra admin center</strong></td><td>A browser and an admin account in your test tenant</td><td>Lab 02</td></tr>
+              <tr><td><strong>PowerShell</strong></td><td>PowerShell 7 or later, then <code>Install-Module Microsoft.Graph</code> (or only the submodules you need)</td><td>Lab 03</td></tr>
+              <tr><td><strong>C# / .NET</strong></td><td>.NET 8 SDK or later, VS Code with C# Dev Kit or Visual Studio, packages <code>Microsoft.Graph</code> and <code>Azure.Identity</code></td><td>Lab 04</td></tr>
+              <tr><td><strong>Python</strong></td><td>Python 3.10 or later, packages <code>msgraph-sdk</code> and <code>azure-identity</code>; on Windows, enable long path support first</td><td>Lab 05</td></tr>
+              <tr><td><strong>Java</strong></td><td>JDK 11 or later, Maven or Gradle, packages <code>com.microsoft.graph:microsoft-graph</code> and <code>com.azure:azure-identity</code></td><td>Lab 06</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/sdks/sdk-installation" target="_blank" rel="noopener">Install a Microsoft Graph SDK</a> &middot; <a href="https://learn.microsoft.com/powershell/microsoftgraph/installation" target="_blank" rel="noopener">Install Microsoft Graph PowerShell</a></div>
+        </section>
+
+        <section id="ready" class="section-card reveal">
+          <h2>Ready Checklist</h2>
+          <ul class="checklist">
+            <li>You can sign in to a test tenant at <a href="https://entra.microsoft.com" target="_blank" rel="noopener">entra.microsoft.com</a>.</li>
+            <li>Your account can register apps and grant admin consent in that tenant.</li>
+            <li>Graph Explorer opens at <a href="https://aka.ms/ge" target="_blank" rel="noopener">aka.ms/ge</a>.</li>
+            <li>The tools for the language you chose are installed.</li>
+          </ul>
+          <div class="takeaway">
+            <h3>Key takeaway</h3>
+            <p>You need a tenant and the right roles more than you need an Azure subscription. Set them up first; the tools take minutes.</p>
+          </div>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="overview.html"><small>Previous</small><strong>&larr; What Is Microsoft Graph</strong></a>
+          <a class="next" href="auth-permissions.html"><small>Next</small><strong>Authentication and Permissions &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#what-you-need">What You Need</a>
+        <a href="#tenant">Get a Test Tenant</a>
+        <a href="#azure-subscription">Azure Subscription?</a>
+        <a href="#roles">Roles You Need</a>
+        <a href="#skills">Skills That Help</a>
+        <a href="#tools">Tools by Language</a>
+        <a href="#ready">Ready Checklist</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>

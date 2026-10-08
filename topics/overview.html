@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What Is Microsoft Graph &middot; Microsoft Graph API for Developers</title>
+  <meta name="description" content="What Microsoft Graph is, which Microsoft cloud services it reaches, real-world use case scenarios, how AI agents use Microsoft Graph, and when to use the API, Copilot connectors, or Data Connect." />
+  <script>(function(){var t=localStorage.getItem("workshop-theme");document.documentElement.setAttribute("data-theme",(t==="light"||t==="dark")?t:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));})();</script>
+  <link rel="icon" type="image/svg+xml" href="../images/brand/microsoft-graph.svg" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-root=".." data-active="overview">
+  <div class="page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a><span class="sep">/</span><span>Topics</span><span class="sep">/</span><span>What Is Microsoft Graph</span>
+    </nav>
+
+    <header class="hero">
+      <h1>What Is Microsoft Graph</h1>
+      <p class="subtitle">One endpoint, one access token, and a connected model of the data in Microsoft 365, Microsoft Entra ID, and other Microsoft cloud services.</p>
+      <div class="badge-row"><span class="badge">Start here</span><span class="badge">Concepts</span><span class="badge">~15 min</span></div>
+    </header>
+
+    <div class="layout">
+      <main class="content">
+        <section id="what-is" class="section-card reveal">
+          <h2>What Is Microsoft Graph?</h2>
+          <div class="quote-card">
+            <p>Microsoft Graph is the gateway to data and intelligence in Microsoft cloud services like Microsoft Entra and Microsoft 365.</p>
+            <cite>Source: Microsoft Graph overview, Microsoft Learn</cite>
+          </div>
+          <p>The Microsoft Graph API exposes a single endpoint, <code>https://graph.microsoft.com</code>. You call it with REST requests or through the Microsoft Graph SDKs, and you authenticate once with an access token issued by the Microsoft identity platform.</p>
+          <p>Instead of learning a separate API for mail, files, users, and Teams, you learn one request model, one permission model, and one error format, and you reuse them everywhere.</p>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>One endpoint</h3><p><code>graph.microsoft.com</code> fronts users, groups, mail, calendars, files, sites, Teams, devices, and more.</p></div>
+            <div class="cheat-item tone-purple"><h3>One identity model</h3><p>Microsoft Entra ID issues the token. Permissions such as <code>User.Read</code> control what the token can do.</p></div>
+            <div class="cheat-item tone-green"><h3>Connected data</h3><p>Resources link through relationships, so you can move from a user to their manager, groups, files, or meetings.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/overview" target="_blank" rel="noopener">Microsoft Graph overview</a></div>
+        </section>
+
+        <section id="whats-in" class="section-card reveal">
+          <h2>What Microsoft Graph Reaches</h2>
+          <p>Every client talks to the same endpoint. Microsoft Graph routes the request to the service that owns the data.</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    APP[Your app or script] -->|Step 1: get token| ENTRA[Microsoft Entra ID]
+    APP -->|Step 2: call API| GRAPH[graph.microsoft.com]
+    GRAPH --> M365[Microsoft 365]
+    GRAPH --> EID[Entra ID directory]
+    GRAPH --> SEC[Intune and security]
+    GRAPH --> WIN[Windows services]
+    class APP external
+    class ENTRA accent
+    class GRAPH azure
+    class M365,EID,SEC,WIN data
+            </pre>
+          </div>
+          <p class="diagram-caption">Your app gets a token from Microsoft Entra ID, then sends every request to one endpoint.</p>
+          <div class="legend">
+            <div class="legend-item"><span class="swatch tone-gray"></span>Your code</div>
+            <div class="legend-item"><span class="swatch tone-purple"></span>Identity platform</div>
+            <div class="legend-item"><span class="swatch tone-blue"></span>Microsoft Graph endpoint</div>
+            <div class="legend-item"><span class="swatch tone-teal"></span>Services that own the data</div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Service family</th><th>Examples</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Microsoft 365 core services</strong></td><td>Bookings, Calendar, Excel, OneDrive, OneNote, Outlook/Exchange, People, Planner, SharePoint, Teams, To Do, Viva Insights, Microsoft Search</td></tr>
+              <tr><td><strong>Enterprise Mobility + Security</strong></td><td>Microsoft Entra, Intune, Identity Manager, Advanced Threat Protection</td></tr>
+              <tr><td><strong>Windows services</strong></td><td>Activities, devices, notifications, Universal Print</td></tr>
+              <tr><td><strong>Business services</strong></td><td>Dynamics 365 Business Central, Microsoft Partner Center</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/overview-major-services" target="_blank" rel="noopener">Major services and features in Microsoft Graph</a></div>
+        </section>
+
+        <section id="core-resources" class="section-card reveal">
+          <h2>Core Resources</h2>
+          <p>Most apps start with a handful of resources centered on the user. Each one is a URL you can read, and most are also ones you can create, update, or delete with the right permission.</p>
+          <figure class="media-panel">
+            <img src="../images/custom/overview-graph-services.png" alt="A user at the center of a ring of Microsoft Graph services: mail, conversations, files, events, devices, security, tasks, and groups." loading="lazy" />
+            <figcaption>Everything around the user is reachable from the same endpoint with the same token.</figcaption>
+          </figure>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Resource</th><th>Example request</th><th>Typical use</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Users</strong></td><td><code>GET /v1.0/users</code></td><td>Profiles, accounts, managers, licenses</td></tr>
+              <tr><td><strong>Groups</strong></td><td><code>GET /v1.0/groups</code></td><td>Security and Microsoft 365 groups, memberships</td></tr>
+              <tr><td><strong>Applications</strong></td><td><code>GET /v1.0/applications</code></td><td>App registrations, credentials, permissions</td></tr>
+              <tr><td><strong>Calendars</strong></td><td><code>GET /v1.0/me/events</code></td><td>Meetings, availability, scheduling</td></tr>
+              <tr><td><strong>Files</strong></td><td><code>GET /v1.0/me/drive/root/children</code></td><td>OneDrive and SharePoint documents</td></tr>
+              <tr><td><strong>Mail</strong></td><td><code>GET /v1.0/me/messages</code></td><td>Read, send, and organize Outlook mail</td></tr>
+              <tr><td><strong>Sites</strong></td><td><code>GET /v1.0/sites/root</code></td><td>SharePoint sites, lists, and pages</td></tr>
+              <tr><td><strong>Teams</strong></td><td><code>GET /v1.0/me/joinedTeams</code></td><td>Teams, channels, chats, messages</td></tr>
+              <tr><td><strong>To Do tasks</strong></td><td><code>GET /v1.0/me/todo/lists</code></td><td>Task lists and tasks</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/overview" target="_blank" rel="noopener">Microsoft Graph overview</a> &middot; <a href="https://aka.ms/graph" target="_blank" rel="noopener">Microsoft Graph Dev Center</a></div>
+        </section>
+
+        <section id="relationships" class="section-card reveal">
+          <h2>Navigate the Graph</h2>
+          <p>Resources are connected by <em>relationships</em>. You follow them in the URL path, the same way you follow links between pages. That network of connected data is why it's called a <em>graph</em>.</p>
+          <figure class="media-panel">
+            <img src="../images/custom/overview-graph-network.png" alt="Network diagram titled Microsoft Graph connecting Organization, Groups, Devices, Email, Teams, Files, Chat, User, Reports, Meetings, and Calendar nodes." loading="lazy" />
+            <figcaption>Each node is a resource and each line a relationship. A user links to files, chats, meetings, and teams, which link to each other.</figcaption>
+          </figure>
+          <p>In a request URL, a relationship is just the next path segment:</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    ME(["/me"]) -->|manager| MGR[User]
+    ME -->|memberOf| GRP[Group]
+    GRP -->|members| MEM[Users]
+    ME -->|events| EVT[(Events)]
+    ME -->|messages| MSG[(Messages)]
+    ME -->|drive| DRV[(OneDrive files)]
+    class ME accent
+    class MGR,GRP,MEM azure
+    class EVT,MSG,DRV data
+            </pre>
+          </div>
+          <p class="diagram-caption">Purple is the signed-in user, blue are directory objects, teal are content stores.</p>
+          <p>For example, to prepare for a meeting you can read the event attendees, look each one up as a <strong>user</strong>, follow <code>manager</code> to their manager, and follow <code>memberOf</code> to their groups, all with the same token.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Request</th><th>Returns</th></tr></thead>
+            <tbody>
+              <tr><td><code>GET /v1.0/me</code></td><td>Your profile</td></tr>
+              <tr><td><code>GET /v1.0/me/manager</code></td><td>Your manager</td></tr>
+              <tr><td><code>GET /v1.0/me/events</code></td><td>Your calendar events</td></tr>
+              <tr><td><code>GET /v1.0/me/drive/root/children</code></td><td>Files in the root of your OneDrive</td></tr>
+              <tr><td><code>GET /v1.0/users</code></td><td>Users in your organization</td></tr>
+              <tr><td><code>GET /v1.0/groups</code></td><td>Groups in your organization</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>Note:</strong> The <code>/me</code> alias always means the signed-in user, so it only works when a user is signed in (delegated access). Background services use <code>/users/{id}</code> instead.</div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/overview" target="_blank" rel="noopener">Popular API requests</a></div>
+        </section>
+
+        <section id="use-cases" class="section-card reveal">
+          <h2>Capabilities and Use Cases</h2>
+          <p>Four capabilities show up in almost every Microsoft Graph solution:</p>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>Access user data</h3><p>Read profiles, mail, calendars, and files to personalize your app for the person using it.</p></div>
+            <div class="cheat-item tone-purple"><h3>Manage resources</h3><p>Create and update users, groups, app registrations, and Teams from code instead of the portal.</p></div>
+            <div class="cheat-item tone-orange"><h3>Automate workflows</h3><p>Replace manual admin and onboarding tasks with scripts and background jobs.</p></div>
+            <div class="cheat-item tone-green"><h3>Extend your apps</h3><p>Bring Microsoft 365 context such as meetings, documents, and colleagues into your own product.</p></div>
+          </div>
+        </section>
+
+        <section id="scenarios" class="section-card reveal">
+          <h2>Use Case Scenarios</h2>
+          <p>Use Microsoft Graph when the data or the action lives in Microsoft 365 or Microsoft Entra ID and you need it in real time, for one user or across the tenant. Each scenario below shows the calls involved and whether it runs as the user (delegated) or as the app (app-only).</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Scenario</th><th>What the app does</th><th>Typical calls</th><th>Access</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Employee onboarding</strong></td><td>Create the account, assign a license, add to groups; disable the account when the person leaves</td><td><code>POST /users</code><br><code>POST /users/{id}/assignLicense</code><br><code>POST /groups/{id}/members/$ref</code><br><code>PATCH /users/{id}</code></td><td>App-only</td></tr>
+              <tr><td><strong>Identity hygiene reports</strong></td><td>Find unlicensed users, guests, and app registrations with expiring secrets</td><td><code>GET /users?$filter=userType eq 'Guest'</code><br><code>GET /applications?$select=displayName,passwordCredentials</code></td><td>App-only</td></tr>
+              <tr><td><strong>Personalized intranet</strong></td><td>Show the signed-in user's profile, manager, photo, upcoming meetings, and files</td><td><code>GET /me</code>, <code>/me/manager</code><br><code>GET /me/photo/$value</code><br><code>GET /me/calendarView</code></td><td>Delegated</td></tr>
+              <tr><td><strong>Meeting scheduler</strong></td><td>Suggest times when everyone is free, then book the meeting</td><td><code>POST /me/findMeetingTimes</code><br><code>POST /me/events</code></td><td>Delegated</td></tr>
+              <tr><td><strong>Document automation</strong></td><td>Save generated reports to SharePoint and share them</td><td><code>PUT /sites/{id}/drive/root:/{path}:/content</code><br><code>POST /drives/{id}/items/{id}/createLink</code></td><td>Either</td></tr>
+              <tr><td><strong>Teams notifications</strong></td><td>Post updates to a channel or a user's activity feed</td><td><code>POST /teams/{id}/channels/{id}/messages</code><br><code>POST /users/{id}/teamwork/sendActivityNotification</code></td><td>Either, per API</td></tr>
+              <tr><td><strong>Sync to another system</strong></td><td>Keep an HR, CRM, or ticketing system in step with users and groups</td><td><code>GET /users/delta</code><br><code>POST /subscriptions</code></td><td>App-only</td></tr>
+              <tr><td><strong>Security operations</strong></td><td>Pull alerts and risky users into a SIEM or a response workflow</td><td><code>GET /security/alerts_v2</code><br><code>GET /identityProtection/riskyUsers</code></td><td>App-only</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>How to choose:</strong> If you need to analyze large volumes on a schedule, use Microsoft Graph Data Connect. If you need to bring <em>external</em> data into Microsoft 365, use Copilot connectors. See <a href="#platform">API, Copilot Connectors, or Data Connect</a>.</div>
+          <div class="callout success"><strong>Tip:</strong> Some APIs support only one access type. For example, posting a regular channel message works only with delegated permissions. Check the <strong>Permissions</strong> table on each API reference page before you design the app.</div>
+        </section>
+
+        <section id="ai-agents" class="section-card reveal">
+          <h2>Microsoft Graph for AI Agents</h2>
+          <p>An AI agent needs two things from your organization: <strong>context</strong> to ground its answers, and <strong>tools</strong> to take action. Microsoft Graph provides both, under the same identity, permission, and consent model you use for any other app.</p>
+          <div class="diagram-wrap">
+            <pre class="mermaid">
+flowchart LR
+    U([User]) --> AG[AI agent]
+    AG -->|token| ENTRA[Microsoft Entra ID]
+    AG -->|tools| API[Microsoft Graph API]
+    AG -->|grounding| RET[Copilot Retrieval API]
+    AG -->|natural language| MCP[MCP Server for Enterprise]
+    API --> M365[(Microsoft 365 data)]
+    RET --> M365
+    MCP --> API
+    class U neutral
+    class AG accent
+    class ENTRA accent
+    class API,RET,MCP azure
+    class M365 data
+            </pre>
+          </div>
+          <p class="diagram-caption">Every path ends in Microsoft Graph, so the agent can never see more than its token allows.</p>
+          <h3>Agent Scenarios</h3>
+          <div class="cheat">
+            <div class="cheat-item tone-purple"><h3>Meeting prep agent</h3><p>Reads tomorrow's events, the attendees' profiles, and the files shared in the invite, then writes a briefing. Delegated: <code>Calendars.Read</code>, <code>User.ReadBasic.All</code>, <code>Files.Read.All</code>.</p></div>
+            <div class="cheat-item tone-blue"><h3>Knowledge (RAG) agent</h3><p>Answers policy and product questions grounded in SharePoint, OneDrive, and Copilot connector content through the Copilot Retrieval API, which keeps data in place and respects document permissions and sensitivity labels.</p></div>
+            <div class="cheat-item tone-teal"><h3>IT helpdesk agent</h3><p>Answers "Which users didn't sign in last month?" or "How many guest users do we have?" by translating the question into read-only Microsoft Graph calls through the MCP Server for Enterprise.</p></div>
+            <div class="cheat-item tone-green"><h3>Task agent</h3><p>Turns a conversation into actions: creates a To Do task, drafts a reply, or books a follow-up meeting on the user's behalf, after the user confirms.</p></div>
+            <div class="cheat-item tone-orange"><h3>Onboarding agent</h3><p>Runs the onboarding steps from the scenarios table when HR approves a hire, using its own identity and application permissions scoped to what the job needs.</p></div>
+            <div class="cheat-item tone-gray"><h3>AI governance</h3><p>Reports Copilot adoption with the Copilot usage reports API and archives Copilot interactions for compliance with the Interaction Export API.</p></div>
+          </div>
+          <h3>Which Building Block to Use</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Your agent needs to</th><th>Use</th><th>Good to know</th></tr></thead>
+            <tbody>
+              <tr><td>Read or change Microsoft 365 data as a tool</td><td>Microsoft Graph API</td><td>Standard license terms. Covers create, read, update, and delete across services.</td></tr>
+              <tr><td>Ground answers in documents (RAG)</td><td><a href="https://learn.microsoft.com/microsoft-365-copilot/extensibility/api/ai-services/retrieval/overview" target="_blank" rel="noopener">Copilot Retrieval API</a></td><td>Under the Microsoft Graph namespace (<code>/copilot</code>). Needs a Microsoft 365 Copilot license, or pay-as-you-go (preview) for tenant-level sources. Requires <code>Files.Read.All</code> and <code>Sites.Read.All</code> for SharePoint and OneDrive.</td></tr>
+              <tr><td>Query directory data in natural language</td><td><a href="https://learn.microsoft.com/graph/mcp-server/overview" target="_blank" rel="noopener">MCP Server for Enterprise</a> <span class="chip chip-warning">Preview</span></td><td>Read-only Microsoft Entra scenarios, 100 calls per minute per user, global cloud only. Works with any MCP-capable client.</td></tr>
+              <tr><td>Make external data available to Copilot and agents</td><td>Microsoft 365 Copilot connectors</td><td>Indexes third-party content into Microsoft Graph. See <a href="#platform">API, Copilot Connectors, or Data Connect</a>.</td></tr>
+              <tr><td>Give the agent its own governed identity</td><td><a href="https://learn.microsoft.com/entra/agent-id/what-is-agent-id-platform" target="_blank" rel="noopener">Microsoft Entra Agent ID</a></td><td>Agent identities and blueprints that support delegated and app-only tokens, for agents built in Copilot Studio or on other platforms.</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout"><strong>Note:</strong> Use the Microsoft Graph API when the agent needs to <em>work with</em> data, and the Copilot APIs when it needs AI to <em>reason over</em> data. The Copilot APIs require a Microsoft 365 Copilot license; standard Microsoft Graph APIs don't.</div>
+          <h3>Guardrails for Agents</h3>
+          <ul class="checklist">
+            <li>Prefer <strong>delegated</strong> access so the agent can never exceed what the signed-in user can see.</li>
+            <li>Grant the fewest permissions per tool, and keep read and write tools separate.</li>
+            <li>Ask the user to confirm before any write: sending mail, changing users, or deleting content.</li>
+            <li>Use <code>$select</code> and <code>$filter</code> so only the data the model needs leaves Microsoft Graph.</li>
+            <li>Treat mail, chat, and document content as untrusted input: it can contain instructions aimed at the model.</li>
+            <li>Monitor agent traffic with <a href="errors-throttling.html#monitor">Microsoft Graph activity logs</a>; requests made through the MCP Server for Enterprise are logged there too.</li>
+          </ul>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/microsoft-365-copilot/extensibility/copilot-apis-overview" target="_blank" rel="noopener">Microsoft 365 Copilot APIs overview</a> &middot; <a href="https://learn.microsoft.com/graph/mcp-server/overview" target="_blank" rel="noopener">Microsoft MCP Server for Enterprise</a> &middot; <a href="https://learn.microsoft.com/entra/agent-id/what-is-agent-id-platform" target="_blank" rel="noopener">Microsoft agent identity platform</a></div>
+        </section>
+
+        <section id="platform" class="section-card reveal">
+          <h2>API, Copilot Connectors, or Data Connect</h2>
+          <p>Three components work together on the Microsoft 365 platform. This workshop focuses on the Microsoft Graph API.</p>
+          <div class="cheat">
+            <div class="cheat-item tone-blue"><h3>Microsoft Graph API</h3><p>Real-time REST access to a single user's data or the whole tenant. Operates on the source data.</p></div>
+            <div class="cheat-item tone-purple"><h3>Microsoft 365 Copilot connectors</h3><p>Formerly Microsoft Graph connectors. Bring external data <em>into</em> Microsoft Graph so Microsoft Search and Copilot can use it.</p></div>
+            <div class="cheat-item tone-teal"><h3>Microsoft Graph Data Connect</h3><p>Deliver Microsoft Graph data at scale to Azure data stores on a recurring schedule, for analytics.</p></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Need</th><th>Graph API</th><th>Data Connect</th></tr></thead>
+            <tbody>
+              <tr><td>Act on data for one user or the tenant, right now</td><td><span class="rating rating-best">Best</span></td><td><span class="rating rating-no">No</span></td></tr>
+              <tr><td>Extract large volumes on a schedule for analytics</td><td><span class="rating rating-weak">Throttled</span></td><td><span class="rating rating-best">Best</span></td></tr>
+              <tr><td>Write or update data</td><td><span class="rating rating-best">Yes</span></td><td><span class="rating rating-no">No, reads a cache</span></td></tr>
+              <tr><td>Tooling</td><td>REST, SDKs</td><td>Azure Data Factory</td></tr>
+            </tbody>
+          </table></div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/overview" target="_blank" rel="noopener">When to use Microsoft Graph API or Data Connect</a></div>
+        </section>
+
+        <section id="cost" class="section-card reveal">
+          <h2>What It Costs</h2>
+          <p>Most Microsoft Graph APIs are <strong>standard APIs</strong>. They're available at no additional cost with your users' Microsoft 365 or Microsoft Entra licenses, within documented throttling limits.</p>
+          <p>A small set of <strong>high-capacity</strong> (bulk export or import) and <strong>advanced</strong> APIs are <strong>metered</strong>. To call them, you associate your app with an active Azure subscription, and usage is billed to that subscription.</p>
+          <div class="cheat">
+            <div class="cheat-item tone-green"><h3>No Azure subscription needed</h3><p>For standard APIs such as users, groups, mail, calendar, and files. You need a Microsoft Entra tenant and, for Microsoft 365 data, the relevant licenses.</p></div>
+            <div class="cheat-item tone-orange"><h3>Metered APIs</h3><p>Require an Azure subscription and a confidential client app. Not available in national cloud deployments. Check the metering unit before you build.</p></div>
+          </div>
+          <div class="callout learn"><strong>Learn more:</strong> <a href="https://learn.microsoft.com/graph/metered-api-overview" target="_blank" rel="noopener">Overview of metered APIs and services</a> &middot; <a href="https://learn.microsoft.com/graph/metered-api-list" target="_blank" rel="noopener">Metered APIs and services list</a></div>
+        </section>
+
+        <section id="next" class="section-card reveal">
+          <h2>Next Steps</h2>
+          <div class="takeaway">
+            <h3>Key takeaway</h3>
+            <p>Microsoft Graph gives you one endpoint, one token, and one request model for Microsoft cloud data. What your app can reach depends on the permissions you grant it, which is the next topic.</p>
+          </div>
+          <ul>
+            <li>Continue with <a href="setup-environment.html">Set Up Your Environment</a>.</li>
+            <li>Try requests now in <a href="../labs/lab01-graph-explorer.html">Lab 01: Explore Microsoft Graph with Graph Explorer</a>.</li>
+          </ul>
+        </section>
+
+        <nav class="pager" aria-label="Workshop pagination">
+          <a class="prev" href="../index.html"><small>Previous</small><strong>&larr; Home</strong></a>
+          <a class="next" href="setup-environment.html"><small>Next</small><strong>Set Up Your Environment &rarr;</strong></a>
+        </nav>
+      </main>
+
+      <aside class="toc" aria-label="Table of contents">
+        <h3>On This Page</h3>
+        <a href="#what-is">What Is Microsoft Graph?</a>
+        <a href="#whats-in">What It Reaches</a>
+        <a href="#core-resources">Core Resources</a>
+        <a href="#relationships">Navigate the Graph</a>
+        <a href="#use-cases">Capabilities and Use Cases</a>
+        <a href="#scenarios">Use Case Scenarios</a>
+        <a href="#ai-agents">Graph for AI Agents</a>
+        <a href="#platform">API, Connectors, Data Connect</a>
+        <a href="#cost">What It Costs</a>
+        <a href="#next">Next Steps</a>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="../assets/site.js"></script>
+</body>
+</html>
